@@ -9,6 +9,7 @@ import SaveNotification from './components/SaveNotification';
 import PrayerTimesTab from './components/PrayerTimesTab';
 import JumuahTimesTab from './components/JumuahTimesTab';
 import MosqueSettingsTab from './components/MosqueSettingsTab';
+import EventsTab from './components/EventsTab';
 
 // Import custom hook
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
@@ -71,6 +72,7 @@ export default function AdminDashboard(): React.JSX.Element {
     latitude: -33.8688,
     longitude: 151.2093,
     calculation_method: 3,
+    auto_fetch_maghrib: false,
     last_updated: new Date().toISOString().split('T')[0]
   });
 
@@ -230,6 +232,13 @@ export default function AdminDashboard(): React.JSX.Element {
             onChange={setJumuahTimes}
             onSave={saveJumuahTimes}
             saving={saving}
+          />
+        )}
+
+        {activeTab === 'events' && (
+          <EventsTab
+            saving={saving}
+            onSaveStatusChange={showSaveStatus}
           />
         )}
 

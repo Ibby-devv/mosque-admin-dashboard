@@ -51,6 +51,24 @@ export interface MosqueSettings {
   last_updated?: string;
 }
 
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string; // ISO date string (YYYY-MM-DD)
+  time: string; // e.g., "7:00 PM"
+  location?: string;
+  category: 'lecture' | 'community' | 'youth' | 'women' | 'education' | 'charity' | 'other';
+  speaker?: string;
+  image_url?: string;
+  rsvp_enabled?: boolean;
+  rsvp_limit?: number;
+  rsvp_count?: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Component Props Types
 
 export interface LoginFormProps {
@@ -92,4 +110,9 @@ export interface MosqueSettingsTabProps {
   onChange: (settings: MosqueSettings) => void;
   onSave: () => void;
   saving: boolean;
+}
+
+export interface EventsTabProps {
+  saving: boolean;
+  onSaveStatusChange: (success: boolean) => void;
 }

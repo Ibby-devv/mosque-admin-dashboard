@@ -31,15 +31,16 @@ const Tab = styled.button<{ $active: boolean }>`
   }
 `;
 
-interface Tab {
+interface TabItem {
   id: string;
   label: string;
 }
 
 export default function Tabs({ activeTab, onTabChange }: TabsProps): React.JSX.Element {
-  const tabs: Tab[] = [
+  const tabs: TabItem[] = [
     { id: 'prayer', label: 'Daily Prayer Times' },
     { id: 'jumuah', label: 'Jumuah Times' },
+    { id: 'events', label: 'Events' },
     { id: 'settings', label: 'Mosque Settings' }
   ];
 
