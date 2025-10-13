@@ -71,7 +71,6 @@ export default function AdminDashboard(): React.JSX.Element {
     latitude: -33.8688,
     longitude: 151.2093,
     calculation_method: 3,
-    auto_fetch_maghrib: false,
     last_updated: new Date().toISOString().split('T')[0]
   });
 

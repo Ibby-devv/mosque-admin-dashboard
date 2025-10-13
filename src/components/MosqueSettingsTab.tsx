@@ -84,36 +84,6 @@ const TwoColumnGrid = styled.div`
   gap: 1rem;
 `;
 
-const CheckboxContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #f3f4f6;
-  }
-`;
-
-const Checkbox = styled.input`
-  width: 1.25rem;
-  height: 1.25rem;
-  cursor: pointer;
-`;
-
-const CheckboxLabel = styled.label`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-  cursor: pointer;
-  flex: 1;
-`;
-
 const InfoBox = styled.div`
   margin-top: 1rem;
   padding: 0.75rem;
@@ -246,8 +216,16 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
 
         <SectionTitle>
           <MapPin size={20} />
-          Location Settings (for Maghrib Auto-Fetch)
+          Location Settings (for Prayer Time Calculation)
         </SectionTitle>
+
+        <InfoBox>
+          <strong>📍 Location is used to automatically calculate all prayer times</strong>
+          <div style={{ marginTop: '0.5rem' }}>
+            Once you save your mosque location, all Adhan times will be automatically calculated from Aladhan API based on astronomical data.
+            You only need to set the Iqama times in the Prayer Times tab.
+          </div>
+        </InfoBox>
 
         <TwoColumnGrid>
           <FormGroup>
@@ -288,34 +266,9 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
             ))}
           </Select>
           <HelpText>
-            This determines how prayer times are calculated. MWL (Muslim World League) is commonly used.
+            This determines how prayer times are calculated. MWL (Muslim World League) is commonly used globally.
           </HelpText>
         </FormGroup>
-
-        <FormGroup>
-          <CheckboxContainer onClick={() => handleChange('auto_fetch_maghrib', !mosqueSettings?.auto_fetch_maghrib)}>
-            <Checkbox
-              type="checkbox"
-              checked={mosqueSettings?.auto_fetch_maghrib || false}
-              onChange={(e) => handleChange('auto_fetch_maghrib', e.target.checked)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <CheckboxLabel>
-              🌅 Auto-fetch Maghrib Adhan time from API
-            </CheckboxLabel>
-          </CheckboxContainer>
-        </FormGroup>
-
-        {mosqueSettings?.auto_fetch_maghrib && (
-          <InfoBox>
-            <strong>Maghrib Auto-Fetch Enabled</strong>
-            <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem' }}>
-              <li>Maghrib Adhan time will be fetched from Aladhan API based on sunset</li>
-              <li>Mobile app will automatically fetch Maghrib daily when users open it</li>
-              <li>You can also click "Fetch Maghrib Now" in Prayer Times tab to update manually</li>
-            </ul>
-          </InfoBox>
-        )}
       </SettingsForm>
 
       <SaveButton onClick={onSave} disabled={saving}>

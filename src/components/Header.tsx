@@ -54,7 +54,7 @@ export default function Header({ onLogout }: HeaderProps): React.JSX.Element {
       <HeaderContent>
         <div>
           <HeaderTitle>Admin Dashboard</HeaderTitle>
-          <HeaderSubtitle>Al Madina Masjid Yagoona</HeaderSubtitle>
+          <HeaderSubtitle>Al Ansar Masjid Yagoona</HeaderSubtitle>
         </div>
         <LogoutButton onClick={onLogout}>
           <LogOut size={18} />
