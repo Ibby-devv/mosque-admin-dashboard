@@ -27,14 +27,29 @@ export default function AdminDashboard(): React.JSX.Element {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes>({
     fajr_adhan: '5:30 AM',
     fajr_iqama: '5:45 AM',
+    fajr_iqama_type: 'fixed',
+    fajr_iqama_offset: 15,
+    
     dhuhr_adhan: '12:45 PM',
     dhuhr_iqama: '1:00 PM',
+    dhuhr_iqama_type: 'fixed',
+    dhuhr_iqama_offset: 15,
+    
     asr_adhan: '4:15 PM',
     asr_iqama: '4:30 PM',
+    asr_iqama_type: 'fixed',
+    asr_iqama_offset: 15,
+    
     maghrib_adhan: '7:20 PM',
     maghrib_iqama: '7:25 PM',
+    maghrib_iqama_type: 'fixed',
+    maghrib_iqama_offset: 5,
+    
     isha_adhan: '8:45 PM',
     isha_iqama: '9:00 PM',
+    isha_iqama_type: 'fixed',
+    isha_iqama_offset: 15,
+    
     last_updated: new Date().toISOString().split('T')[0]
   });
   
@@ -53,6 +68,10 @@ export default function AdminDashboard(): React.JSX.Element {
     email: 'info@almadinamasjid.com.au',
     website: 'www.almadinamasjid.com.au',
     imam: 'Sheikh [Name]',
+    latitude: -33.8688,
+    longitude: 151.2093,
+    calculation_method: 3,
+    auto_fetch_maghrib: false,
     last_updated: new Date().toISOString().split('T')[0]
   });
 
@@ -67,7 +86,18 @@ export default function AdminDashboard(): React.JSX.Element {
     try {
       const prayerDoc = await getDoc(doc(db, 'prayerTimes', 'current'));
       if (prayerDoc.exists()) {
-        setPrayerTimes(prayerDoc.data() as PrayerTimes);
+        const data = prayerDoc.data() as PrayerTimes;
+        // Ensure all prayers have iqama_type and iqama_offset fields (for backward compatibility)
+        const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+        prayers.forEach(prayer => {
+          if (!(data as any)[`${prayer}_iqama_type`]) {
+            (data as any)[`${prayer}_iqama_type`] = 'fixed';
+          }
+          if (!(data as any)[`${prayer}_iqama_offset`]) {
+            (data as any)[`${prayer}_iqama_offset`] = prayer === 'maghrib' ? 5 : 15;
+          }
+        });
+        setPrayerTimes(data);
       }
 
       const jumuahDoc = await getDoc(doc(db, 'jumuahTimes', 'current'));
@@ -191,6 +221,7 @@ export default function AdminDashboard(): React.JSX.Element {
             onChange={setPrayerTimes}
             onSave={savePrayerTimes}
             saving={saving}
+            mosqueSettings={mosqueSettings}
           />
         )}
 

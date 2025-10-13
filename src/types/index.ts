@@ -3,14 +3,29 @@
 export interface PrayerTimes {
   fajr_adhan: string;
   fajr_iqama: string;
+  fajr_iqama_type: 'fixed' | 'offset';
+  fajr_iqama_offset?: number;
+  
   dhuhr_adhan: string;
   dhuhr_iqama: string;
+  dhuhr_iqama_type: 'fixed' | 'offset';
+  dhuhr_iqama_offset?: number;
+  
   asr_adhan: string;
   asr_iqama: string;
+  asr_iqama_type: 'fixed' | 'offset';
+  asr_iqama_offset?: number;
+  
   maghrib_adhan: string;
   maghrib_iqama: string;
+  maghrib_iqama_type: 'fixed' | 'offset';
+  maghrib_iqama_offset?: number;
+  
   isha_adhan: string;
   isha_iqama: string;
+  isha_iqama_type: 'fixed' | 'offset';
+  isha_iqama_offset?: number;
+  
   last_updated?: string;
 }
 
@@ -29,6 +44,10 @@ export interface MosqueSettings {
   email?: string;
   website?: string;
   imam?: string;
+  latitude?: number;
+  longitude?: number;
+  calculation_method?: number;
+  auto_fetch_maghrib?: boolean;
   last_updated?: string;
 }
 
@@ -58,6 +77,7 @@ export interface PrayerTimesTabProps {
   onChange: (times: PrayerTimes) => void;
   onSave: () => void;
   saving: boolean;
+  mosqueSettings?: MosqueSettings;
 }
 
 export interface JumuahTimesTabProps {

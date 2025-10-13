@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Save } from 'lucide-react';
+import { Save, MapPin } from 'lucide-react';
 import { MosqueSettingsTabProps } from '../types';
 
 const Card = styled.div`
@@ -15,6 +15,16 @@ const CardTitle = styled.h2`
   font-weight: bold;
   color: #1f2937;
   margin-bottom: 1.5rem;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 1.5rem 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 `;
 
 const SettingsForm = styled.div`
@@ -51,10 +61,74 @@ const Input = styled.input`
   }
 `;
 
+const Select = styled.select`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+  background: white;
+
+  &:focus {
+    border-color: #1e3a8a;
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+  }
+`;
+
 const TwoColumnGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
+`;
+
+const CheckboxContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+`;
+
+const Checkbox = styled.input`
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+`;
+
+const CheckboxLabel = styled.label`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  flex: 1;
+`;
+
+const InfoBox = styled.div`
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  color: #1e40af;
+`;
+
+const HelpText = styled.p`
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+  margin-bottom: 0;
 `;
 
 const SaveButton = styled.button`
@@ -86,12 +160,28 @@ const SaveButton = styled.button`
 `;
 
 export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, saving }: MosqueSettingsTabProps): React.JSX.Element {
-  const handleChange = (field: keyof typeof mosqueSettings, value: string): void => {
+  const handleChange = (field: keyof typeof mosqueSettings, value: string | number | boolean): void => {
     onChange({
       ...mosqueSettings,
       [field]: value
     });
   };
+
+  const calculationMethods = [
+    { value: 1, label: 'University of Islamic Sciences, Karachi' },
+    { value: 2, label: 'Islamic Society of North America (ISNA)' },
+    { value: 3, label: 'Muslim World League (MWL)' },
+    { value: 4, label: 'Umm Al-Qura University, Makkah' },
+    { value: 5, label: 'Egyptian General Authority of Survey' },
+    { value: 7, label: 'Institute of Geophysics, University of Tehran' },
+    { value: 8, label: 'Gulf Region' },
+    { value: 9, label: 'Kuwait' },
+    { value: 10, label: 'Qatar' },
+    { value: 11, label: 'Majlis Ugama Islam Singapura, Singapore' },
+    { value: 12, label: 'Union Organization islamic de France' },
+    { value: 13, label: 'Diyanet İşleri Başkanlığı, Turkey' },
+    { value: 14, label: 'Spiritual Administration of Muslims of Russia' },
+  ];
 
   return (
     <Card>
@@ -153,6 +243,79 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
             onChange={(e) => handleChange('imam', e.target.value)}
           />
         </FormGroup>
+
+        <SectionTitle>
+          <MapPin size={20} />
+          Location Settings (for Maghrib Auto-Fetch)
+        </SectionTitle>
+
+        <TwoColumnGrid>
+          <FormGroup>
+            <Label>Latitude</Label>
+            <Input
+              type="number"
+              step="0.000001"
+              value={mosqueSettings?.latitude || ''}
+              onChange={(e) => handleChange('latitude', parseFloat(e.target.value))}
+              placeholder="-33.8688"
+            />
+            <HelpText>Example: -33.8688 (Sydney)</HelpText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Longitude</Label>
+            <Input
+              type="number"
+              step="0.000001"
+              value={mosqueSettings?.longitude || ''}
+              onChange={(e) => handleChange('longitude', parseFloat(e.target.value))}
+              placeholder="151.2093"
+            />
+            <HelpText>Example: 151.2093 (Sydney)</HelpText>
+          </FormGroup>
+        </TwoColumnGrid>
+
+        <FormGroup>
+          <Label>Prayer Time Calculation Method</Label>
+          <Select
+            value={mosqueSettings?.calculation_method || 3}
+            onChange={(e) => handleChange('calculation_method', parseInt(e.target.value))}
+          >
+            {calculationMethods.map(method => (
+              <option key={method.value} value={method.value}>
+                {method.label}
+              </option>
+            ))}
+          </Select>
+          <HelpText>
+            This determines how prayer times are calculated. MWL (Muslim World League) is commonly used.
+          </HelpText>
+        </FormGroup>
+
+        <FormGroup>
+          <CheckboxContainer onClick={() => handleChange('auto_fetch_maghrib', !mosqueSettings?.auto_fetch_maghrib)}>
+            <Checkbox
+              type="checkbox"
+              checked={mosqueSettings?.auto_fetch_maghrib || false}
+              onChange={(e) => handleChange('auto_fetch_maghrib', e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <CheckboxLabel>
+              🌅 Auto-fetch Maghrib Adhan time from API
+            </CheckboxLabel>
+          </CheckboxContainer>
+        </FormGroup>
+
+        {mosqueSettings?.auto_fetch_maghrib && (
+          <InfoBox>
+            <strong>Maghrib Auto-Fetch Enabled</strong>
+            <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem' }}>
+              <li>Maghrib Adhan time will be fetched from Aladhan API based on sunset</li>
+              <li>Mobile app will automatically fetch Maghrib daily when users open it</li>
+              <li>You can also click "Fetch Maghrib Now" in Prayer Times tab to update manually</li>
+            </ul>
+          </InfoBox>
+        )}
       </SettingsForm>
 
       <SaveButton onClick={onSave} disabled={saving}>
