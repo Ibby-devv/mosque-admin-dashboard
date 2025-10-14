@@ -186,6 +186,11 @@ const ButtonContainer = styled.div`
   display: flex;
   gap: 1rem;
   margin-top: 1.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column; /* Stack buttons vertically */
+    align-items: center; /* Center buttons horizontally within the container */
+  }
 `;
 
 const RefreshButton = styled.button`
