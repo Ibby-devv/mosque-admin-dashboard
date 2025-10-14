@@ -227,7 +227,7 @@ const SaveButton = styled.button`
   border: none;
   cursor: pointer;
   transition: background 0.2s;
-  flex: 1;
+  
 
   &:hover {
     background: #1e40af;
