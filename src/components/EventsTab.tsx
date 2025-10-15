@@ -38,6 +38,19 @@ interface EventsTabProps {
   onSaveStatusChange: (success: boolean) => void;
 }
 
+// Helper function to check if event is in the past
+const isPastEvent = (eventDate: string): boolean => {
+  const today = new Date().toLocaleString('en-AU', {
+    timeZone: 'Australia/Sydney',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const [day, month, year] = today.split('/');
+  const todayFormatted = `${year}-${month}-${day}`;
+  return eventDate < todayFormatted;
+};
+
 // Styled Components
 const Card = styled.div`
   background: white;
@@ -116,13 +129,29 @@ const EventsGrid = styled.div`
   margin-top: 1.5rem;
 `;
 
-const EventCard = styled.div<{ $active: boolean }>`
-  border: 1px solid ${props => props.$active ? '#10b981' : '#e5e7eb'};
-  background: ${props => props.$active ? '#f0fdf4' : '#f9fafb'};
+const EventCard = styled.div<{ $active: boolean; $isPast: boolean }>`
+  border: 1px solid ${props => 
+    props.$isPast ? '#e5e7eb' : 
+    props.$active ? '#10b981' : '#e5e7eb'
+  };
+  background: ${props => 
+    props.$isPast ? '#f9fafb' : 
+    props.$active ? '#f0fdf4' : '#f9fafb'
+  };
+  border-left: 4px solid ${props => 
+    props.$isPast ? '#9ca3af' : 
+    props.$active ? '#10b981' : '#e5e7eb'
+  };
   border-radius: 0.75rem;
   padding: 1.25rem;
   position: relative;
-  opacity: ${props => props.$active ? 1 : 0.7};
+  opacity: ${props => props.$isPast ? 0.6 : (props.$active ? 1 : 0.7)};
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: ${props => props.$isPast ? 0.7 : 1};
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
 `;
 
 const EventCategory = styled.span<{ $category: string }>`
@@ -156,11 +185,24 @@ const EventCategory = styled.span<{ $category: string }>`
   margin-bottom: 0.75rem;
 `;
 
+const PastEventBadge = styled.span`
+  display: inline-block;
+  background: #fecaca;
+  color: #991b1b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  margin-left: 0.5rem;
+`;
+
 const EventTitle = styled.h3`
   font-size: 1.125rem;
   font-weight: bold;
   color: #1f2937;
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
 `;
 
 const EventDetail = styled.div`
@@ -338,6 +380,18 @@ const EmptyStateText = styled.p`
   margin-bottom: 1.5rem;
 `;
 
+const EventStats = styled.div`
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+`;
+
+const StatItem = styled.span<{ $muted?: boolean }>`
+  color: ${props => props.$muted ? '#9ca3af' : '#1f2937'};
+  font-weight: 600;
+`;
+
 // Component
 export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps): React.JSX.Element {
   const [events, setEvents] = useState<Event[]>([]);
@@ -485,9 +539,21 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
+  // Calculate event statistics
+  const upcomingCount = events.filter(e => !isPastEvent(e.date)).length;
+  const pastCount = events.filter(e => isPastEvent(e.date)).length;
+
   return (
     <Card>
-      <CardTitle>Events Management</CardTitle>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <CardTitle style={{ marginBottom: 0 }}>Events Management</CardTitle>
+        {events.length > 0 && (
+          <EventStats>
+            <StatItem>{upcomingCount} upcoming</StatItem>
+            <StatItem $muted>{pastCount} past</StatItem>
+          </EventStats>
+        )}
+      </div>
 
       <ButtonGroup>
         <Button onClick={() => openModal()}>
@@ -513,60 +579,67 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         </EmptyState>
       ) : (
         <EventsGrid>
-          {events.map(event => (
-            <EventCard key={event.id} $active={event.is_active}>
-              <EventCategory $category={event.category}>
-                {event.category.toUpperCase()}
-              </EventCategory>
-              
-              <EventTitle>{event.title}</EventTitle>
-              
-              <EventDetail>
-                <Calendar size={16} />
-                {formatDate(event.date)} at {event.time}
-              </EventDetail>
-              
-              {event.location && (
+          {events.map(event => {
+            const pastEvent = isPastEvent(event.date);
+            
+            return (
+              <EventCard key={event.id} $active={event.is_active} $isPast={pastEvent}>
+                <EventCategory $category={event.category}>
+                  {event.category.toUpperCase()}
+                </EventCategory>
+                
+                <EventTitle>
+                  {event.title}
+                  {pastEvent && <PastEventBadge>PAST EVENT</PastEventBadge>}
+                </EventTitle>
+                
                 <EventDetail>
-                  <MapPin size={16} />
-                  {event.location}
+                  <Calendar size={16} />
+                  {formatDate(event.date)} at {event.time}
                 </EventDetail>
-              )}
-              
-              {event.speaker && (
-                <EventDetail>
-                  👤 Speaker: {event.speaker}
-                </EventDetail>
-              )}
+                
+                {event.location && (
+                  <EventDetail>
+                    <MapPin size={16} />
+                    {event.location}
+                  </EventDetail>
+                )}
+                
+                {event.speaker && (
+                  <EventDetail>
+                    👤 Speaker: {event.speaker}
+                  </EventDetail>
+                )}
 
-              {event.rsvp_enabled && (
-                <EventDetail>
-                  <Users size={16} />
-                  {event.rsvp_count || 0} / {event.rsvp_limit || 'Unlimited'} RSVPs
-                </EventDetail>
-              )}
-              
-              <EventDescription>
-                {event.description.length > 120 
-                  ? event.description.substring(0, 120) + '...' 
-                  : event.description}
-              </EventDescription>
-              
-              <EventActions>
-                <SmallButton onClick={() => openModal(event)}>
-                  <Edit2 size={16} />
-                  Edit
-                </SmallButton>
-                <SmallButton 
-                  variant="danger"
-                  onClick={() => handleDeleteEvent(event.id)}
-                >
-                  <Trash2 size={16} />
-                  Delete
-                </SmallButton>
-              </EventActions>
-            </EventCard>
-          ))}
+                {event.rsvp_enabled && (
+                  <EventDetail>
+                    <Users size={16} />
+                    {event.rsvp_count || 0} / {event.rsvp_limit || 'Unlimited'} RSVPs
+                  </EventDetail>
+                )}
+                
+                <EventDescription>
+                  {event.description.length > 120 
+                    ? event.description.substring(0, 120) + '...' 
+                    : event.description}
+                </EventDescription>
+                
+                <EventActions>
+                  <SmallButton onClick={() => openModal(event)}>
+                    <Edit2 size={16} />
+                    Edit
+                  </SmallButton>
+                  <SmallButton 
+                    variant="danger"
+                    onClick={() => handleDeleteEvent(event.id)}
+                  >
+                    <Trash2 size={16} />
+                    {pastEvent ? 'Delete Past Event' : 'Delete'}
+                  </SmallButton>
+                </EventActions>
+              </EventCard>
+            );
+          })}
         </EventsGrid>
       )}
 
