@@ -77,70 +77,100 @@ export default function AdminDashboard(): React.JSX.Element {
     last_updated: new Date().toISOString().split('T')[0]
   });
 
-  // NEW: Donation settings state
+  // Donation settings state
   const [donationSettings, setDonationSettings] = useState<DonationSettings | null>(null);
 
-  // Load data from Firebase when authenticated
+  // Load data from Firebase when authenticated (with delay for auth to settle)
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) return;
+    
+    // Small delay to ensure Firebase auth is fully initialized
+    const timer = setTimeout(() => {
       loadData();
-    }
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, [isAuthenticated]);
 
-  // NEW: Load donation settings with real-time updates
+  // Load donation settings with real-time updates
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const unsubscribe = onSnapshot(
-      doc(db, 'donationSettings', 'config'),
-      (doc) => {
-        if (doc.exists()) {
-          setDonationSettings(doc.data() as DonationSettings);
-          console.log('Donation settings loaded:', doc.data());
+    // Small delay to ensure auth is ready
+    const timer = setTimeout(() => {
+      const unsubscribe = onSnapshot(
+        doc(db, 'donationSettings', 'config'),
+        (docSnapshot) => {
+          if (docSnapshot.exists()) {
+            setDonationSettings(docSnapshot.data() as DonationSettings);
+            console.log('✅ Donation settings loaded');
+          }
+        },
+        (error) => {
+          // Log error but don't show notification (real-time listener can fail temporarily)
+          console.warn('⚠️ Donation settings listener error (temporary):', error.message);
         }
-      },
-      (error) => {
-        console.error('Error loading donation settings:', error);
-      }
-    );
+      );
 
-    return () => unsubscribe();
+      // Cleanup function
+      return () => {
+        clearTimeout(timer);
+        unsubscribe();
+      };
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [isAuthenticated]);
 
   const loadData = async (): Promise<void> => {
-    try {
-      const prayerDoc = await getDoc(doc(db, 'prayerTimes', 'current'));
-      if (prayerDoc.exists()) {
-        const data = prayerDoc.data() as PrayerTimes;
-        // Ensure all prayers have iqama_type and iqama_offset fields (for backward compatibility)
-        const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
-        prayers.forEach(prayer => {
-          if (!(data as any)[`${prayer}_iqama_type`]) {
-            (data as any)[`${prayer}_iqama_type`] = 'fixed';
-          }
-          if (!(data as any)[`${prayer}_iqama_offset`]) {
-            (data as any)[`${prayer}_iqama_offset`] = prayer === 'maghrib' ? 5 : 15;
-          }
-        });
-        setPrayerTimes(data);
-      }
+  // Double-check authentication
+  if (!isAuthenticated) {
+    console.log('⏳ Skipping loadData - not authenticated yet');
+    return;
+  }
 
-      const jumuahDoc = await getDoc(doc(db, 'jumuahTimes', 'current'));
-      if (jumuahDoc.exists()) {
-        setJumuahTimes(jumuahDoc.data() as JumuahTimes);
-      }
+  try {
+    console.log('📖 Loading data from Firebase...');
 
-      const settingsDoc = await getDoc(doc(db, 'mosqueSettings', 'info'));
-      if (settingsDoc.exists()) {
-        setMosqueSettings(settingsDoc.data() as MosqueSettings);
-      }
-
-      console.log('Data loaded from Firebase successfully');
-    } catch (error) {
-      console.error('Error loading data:', error);
-      showSaveStatus(false);
+    console.log('  → Loading prayer times...');
+    const prayerDoc = await getDoc(doc(db, 'prayerTimes', 'current'));
+    console.log('  ✅ Prayer times fetched:', prayerDoc.exists());
+    
+    if (prayerDoc.exists()) {
+      const data = prayerDoc.data() as PrayerTimes;
+      const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+      prayers.forEach(prayer => {
+        if (!(data as any)[`${prayer}_iqama_type`]) {
+          (data as any)[`${prayer}_iqama_type`] = 'fixed';
+        }
+        if (!(data as any)[`${prayer}_iqama_offset`]) {
+          (data as any)[`${prayer}_iqama_offset`] = prayer === 'maghrib' ? 5 : 15;
+        }
+      });
+      setPrayerTimes(data);
     }
-  };
+
+    console.log('  → Loading jumuah times...');
+    const jumuahDoc = await getDoc(doc(db, 'jumuahTimes', 'current'));
+    console.log('  ✅ Jumuah times fetched:', jumuahDoc.exists());
+    
+    if (jumuahDoc.exists()) {
+      setJumuahTimes(jumuahDoc.data() as JumuahTimes);
+    }
+
+    console.log('  → Loading mosque settings...');
+    const settingsDoc = await getDoc(doc(db, 'mosqueSettings', 'info'));
+    console.log('  ✅ Mosque settings fetched:', settingsDoc.exists());
+    
+    if (settingsDoc.exists()) {
+      setMosqueSettings(settingsDoc.data() as MosqueSettings);
+    }
+
+    console.log('✅ Data loaded successfully');
+  } catch (error) {
+    console.error('❌ Error loading data (may be temporary):', error);
+  }
+};
 
   const handleLogin = async (email: string, password: string): Promise<void> => {
     await login(email, password);
@@ -164,10 +194,10 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, 'prayerTimes', 'current'), updatedPrayerTimes);
       setPrayerTimes(updatedPrayerTimes);
-      console.log('Prayer times saved to Firebase:', updatedPrayerTimes);
+      console.log('✅ Prayer times saved to Firebase');
       showSaveStatus(true);
     } catch (error) {
-      console.error('Error saving prayer times:', error);
+      console.error('❌ Error saving prayer times:', error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -183,10 +213,10 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, 'jumuahTimes', 'current'), updatedJumuah);
       setJumuahTimes(updatedJumuah);
-      console.log('Jumuah times saved to Firebase:', updatedJumuah);
+      console.log('✅ Jumuah times saved to Firebase');
       showSaveStatus(true);
     } catch (error) {
-      console.error('Error saving Jumuah times:', error);
+      console.error('❌ Error saving Jumuah times:', error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -202,17 +232,16 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, 'mosqueSettings', 'info'), updatedSettings);
       setMosqueSettings(updatedSettings);
-      console.log('Mosque settings saved to Firebase:', updatedSettings);
+      console.log('✅ Mosque settings saved to Firebase');
       showSaveStatus(true);
     } catch (error) {
-      console.error('Error saving mosque settings:', error);
+      console.error('❌ Error saving mosque settings:', error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
     }
   };
 
-  // NEW: Save donation settings
   const saveDonationSettings = async (): Promise<void> => {
     if (!donationSettings) return;
     
