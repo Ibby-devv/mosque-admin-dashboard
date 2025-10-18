@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
 // Import components
 import LoginForm from './components/LoginForm';
@@ -10,12 +10,13 @@ import PrayerTimesTab from './components/PrayerTimesTab';
 import JumuahTimesTab from './components/JumuahTimesTab';
 import MosqueSettingsTab from './components/MosqueSettingsTab';
 import EventsTab from './components/EventsTab';
+import DonationSettingsTab from './components/DonationSettingsTab';
 
 // Import custom hook
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 
 // Import types
-import { PrayerTimes, JumuahTimes, MosqueSettings } from './types';
+import { PrayerTimes, JumuahTimes, MosqueSettings, DonationSettings } from './types';
 
 const db = getFirestore();
 
@@ -76,11 +77,34 @@ export default function AdminDashboard(): React.JSX.Element {
     last_updated: new Date().toISOString().split('T')[0]
   });
 
+  // NEW: Donation settings state
+  const [donationSettings, setDonationSettings] = useState<DonationSettings | null>(null);
+
   // Load data from Firebase when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
     }
+  }, [isAuthenticated]);
+
+  // NEW: Load donation settings with real-time updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribe = onSnapshot(
+      doc(db, 'donationSettings', 'config'),
+      (doc) => {
+        if (doc.exists()) {
+          setDonationSettings(doc.data() as DonationSettings);
+          console.log('Donation settings loaded:', doc.data());
+        }
+      },
+      (error) => {
+        console.error('Error loading donation settings:', error);
+      }
+    );
+
+    return () => unsubscribe();
   }, [isAuthenticated]);
 
   const loadData = async (): Promise<void> => {
@@ -188,6 +212,26 @@ export default function AdminDashboard(): React.JSX.Element {
     }
   };
 
+  // NEW: Save donation settings
+  const saveDonationSettings = async (): Promise<void> => {
+    if (!donationSettings) return;
+    
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'donationSettings', 'config'), {
+        ...donationSettings,
+        updated_at: serverTimestamp(),
+      });
+      console.log('✅ Donation settings saved to Firebase');
+      showSaveStatus(true);
+    } catch (error) {
+      console.error('❌ Error saving donation settings:', error);
+      showSaveStatus(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div style={{ 
@@ -239,6 +283,15 @@ export default function AdminDashboard(): React.JSX.Element {
           <EventsTab
             saving={saving}
             onSaveStatusChange={showSaveStatus}
+          />
+        )}
+
+        {activeTab === 'donations' && (
+          <DonationSettingsTab
+            settings={donationSettings}
+            onChange={setDonationSettings}
+            onSave={saveDonationSettings}
+            saving={saving}
           />
         )}
 

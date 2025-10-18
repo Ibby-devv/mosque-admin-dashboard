@@ -116,3 +116,143 @@ export interface EventsTabProps {
   saving: boolean;
   onSaveStatusChange: (success: boolean) => void;
 }
+// ============================================================================
+// DONATION TYPES
+// ============================================================================
+
+// Payment & Status Types
+export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'refunded';
+export type PaymentMethodType = 'card' | 'apple_pay' | 'google_pay' | 'bank_transfer';
+export type RecurringFrequency = 'weekly' | 'fortnightly' | 'monthly' | 'yearly';
+export type CampaignStatus = 'active' | 'completed' | 'paused';
+export type RecurringDonationStatus = 'active' | 'paused' | 'cancelled';
+
+// Donation Type Configuration (admin-configurable)
+export interface DonationType {
+  id: string;
+  label: string;
+  enabled: boolean;
+}
+
+// Recurring Frequency Configuration
+export interface RecurringFrequencyOption {
+  id: RecurringFrequency;
+  label: string;
+  enabled: boolean;
+}
+
+// Donation Settings (admin-configurable)
+export interface DonationSettings {
+  // Donation types
+  donation_types: DonationType[];
+
+  // Preset amounts
+  preset_amounts: number[];
+  allow_custom_amount: boolean;
+  minimum_amount: number;
+  currency: string;
+
+  // Recurring frequencies
+  recurring_frequencies: RecurringFrequencyOption[];
+
+  // Receipt settings
+  auto_send_receipt: boolean;
+  receipt_prefix: string;
+
+  // Tax settings
+  is_dgr_registered: boolean;
+
+  updated_at: any;
+}
+
+// Main Donation Record
+export interface Donation {
+  id: string;
+  receipt_number: string;
+
+  // Donor info
+  donor_name: string;
+  donor_email: string;
+  donor_phone?: string;
+
+  // Payment info
+  amount: number; // In cents
+  currency: string;
+
+  // Stripe details
+  stripe_payment_intent_id?: string;
+  stripe_subscription_id?: string;
+  stripe_customer_id?: string;
+  payment_method_type: PaymentMethodType;
+  card_last4?: string;
+  card_brand?: string;
+
+  // Status
+  payment_status: PaymentStatus;
+
+  // Donation details
+  donation_type_id: string;
+  donation_type_label: string;
+  campaign_id?: string;
+  is_recurring: boolean;
+  recurring_frequency?: RecurringFrequency;
+
+  // Metadata
+  donor_message?: string;
+  admin_notes?: string;
+
+  // Timestamps
+  date: string; // YYYY-MM-DD (Sydney timezone)
+  created_at: any;
+  completed_at?: any;
+  updated_at: any;
+}
+
+// Campaign
+export interface Campaign {
+  id: string;
+  title: string;
+  description: string;
+  goal_amount: number; // In cents
+  current_amount: number; // In cents
+  currency: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  status: CampaignStatus;
+  image_url?: string;
+  is_visible_in_app: boolean;
+  created_at: any;
+  updated_at: any;
+}
+
+// Recurring Donation
+export interface RecurringDonation {
+  id: string;
+  stripe_subscription_id: string;
+  stripe_customer_id: string;
+
+  // Donor info
+  donor_name: string;
+  donor_email: string;
+
+  // Subscription details
+  amount: number; // In cents
+  currency: string;
+  frequency: RecurringFrequency;
+
+  // Status
+  status: RecurringDonationStatus;
+  next_payment_date: string; // YYYY-MM-DD
+
+  // Donation details
+  donation_type_id: string;
+  donation_type_label: string;
+  campaign_id?: string;
+
+  // Timestamps
+  created_at: any;
+  started_at: any;
+  cancelled_at?: any;
+  last_payment_at?: any;
+  last_payment_donation_id?: string;
+}

@@ -41,6 +41,7 @@ export default function Tabs({ activeTab, onTabChange }: TabsProps): React.JSX.E
     { id: 'prayer', label: 'Daily Prayer Times' },
     { id: 'jumuah', label: 'Jumuah Times' },
     { id: 'events', label: 'Events' },
+    { id: 'donations', label: '💰 Donations' },
     { id: 'settings', label: 'Mosque Settings' }
   ];
 
