@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X } from 'lucide-react';
+import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag } from 'lucide-react';
 import { 
   collection, 
   addDoc, 
@@ -8,30 +8,14 @@ import {
   deleteDoc, 
   doc, 
   getDocs,
+  getDoc,
+  setDoc,
   query,
   orderBy,
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '../firebase';
-
-// Types
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string; // ISO date string
-  time: string; // e.g., "7:00 PM"
-  location?: string;
-  category: 'lecture' | 'community' | 'youth' | 'women' | 'education' | 'charity' | 'other';
-  speaker?: string;
-  image_url?: string;
-  rsvp_enabled?: boolean;
-  rsvp_limit?: number;
-  rsvp_count?: number;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
+import { Event, EventCategory, EventCategoriesConfig } from '../types';
 
 interface EventsTabProps {
   saving: boolean;
@@ -57,6 +41,32 @@ const Card = styled.div`
   border-radius: 0.75rem;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+`;
+
+const Tab = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: ${props => props.$active ? '#1e3a8a' : '#6b7280'};
+  border-bottom: 3px solid ${props => props.$active ? '#1e3a8a' : 'transparent'};
+  margin-bottom: -2px;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #1e3a8a;
+  }
 `;
 
 const CardTitle = styled.h2`
@@ -120,6 +130,11 @@ const SmallButton = styled.button<{ variant?: 'primary' | 'danger' }>`
   &:hover {
     background: ${props => props.variant === 'danger' ? '#b91c1c' : '#1e40af'};
   }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
 `;
 
 const EventsGrid = styled.div`
@@ -154,34 +169,12 @@ const EventCard = styled.div<{ $active: boolean; $isPast: boolean }>`
   }
 `;
 
-const EventCategory = styled.span<{ $category: string }>`
+const EventCategoryBadge = styled.span`
   display: inline-block;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: ${props => {
-    switch (props.$category) {
-      case 'lecture': return '#dbeafe';
-      case 'community': return '#fef3c7';
-      case 'youth': return '#fce7f3';
-      case 'women': return '#f3e8ff';
-      case 'education': return '#dcfce7';
-      case 'charity': return '#fff7ed';
-      default: return '#e5e7eb';
-    }
-  }};
-  color: ${props => {
-    switch (props.$category) {
-      case 'lecture': return '#1e40af';
-      case 'community': return '#92400e';
-      case 'youth': return '#9f1239';
-      case 'women': return '#6b21a8';
-      case 'education': return '#15803d';
-      case 'charity': return '#c2410c';
-      default: return '#374151';
-    }
-  }};
   margin-bottom: 0.75rem;
 `;
 
@@ -225,6 +218,70 @@ const EventActions = styled.div`
   display: flex;
   gap: 0.5rem;
   margin-top: 1rem;
+`;
+
+const CategoriesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+`;
+
+const CategoryCard = styled.div`
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  background: white;
+  transition: all 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const CategoryPreview = styled.div`
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+`;
+
+const CategoryLabel = styled.h4`
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+`;
+
+const CategoryColors = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+const ColorSwatch = styled.div`
+  flex: 1;
+  height: 40px;
+  border-radius: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #d1d5db;
+  
+  span {
+    color: #fff;
+    text-shadow: 0 0 2px rgba(0,0,0,0.5);
+  }
+`;
+
+const CategoryActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 `;
 
 const Modal = styled.div<{ $show: boolean }>`
@@ -384,7 +441,6 @@ const EventStats = styled.div`
   display: flex;
   gap: 1rem;
   font-size: 0.875rem;
-  margin-bottom: 1rem;
 `;
 
 const StatItem = styled.span<{ $muted?: boolean }>`
@@ -394,17 +450,21 @@ const StatItem = styled.span<{ $muted?: boolean }>`
 
 // Component
 export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps): React.JSX.Element {
+  const [activeTab, setActiveTab] = useState<'events' | 'categories'>('events');
   const [events, setEvents] = useState<Event[]>([]);
+  const [categories, setCategories] = useState<EventCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [editingCategory, setEditingCategory] = useState<EventCategory | null>(null);
   const [formData, setFormData] = useState<Partial<Event>>({
     title: '',
     description: '',
     date: '',
     time: '',
     location: '',
-    category: 'lecture',
+    category: '',
     speaker: '',
     image_url: '',
     rsvp_enabled: false,
@@ -412,11 +472,72 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     is_active: true,
   });
 
-  // Load events from Firebase
+  // Load events and categories on mount
   useEffect(() => {
     loadEvents();
+    loadCategories();
   }, []);
 
+  // Load categories from Firestore
+  const loadCategories = async () => {
+    try {
+      const categoriesRef = doc(db, 'eventCategories', 'default');
+      const categoriesDoc = await getDoc(categoriesRef);
+      
+      if (categoriesDoc.exists()) {
+        const data = categoriesDoc.data() as EventCategoriesConfig;
+        const activeCategories = data.categories
+          .filter(cat => cat.is_active)
+          .sort((a, b) => a.order - b.order);
+        setCategories(activeCategories);
+        console.log('Categories loaded:', activeCategories.length);
+      } else {
+        // Create default categories if they don't exist
+        await createDefaultCategories();
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setCategories(getDefaultCategories());
+    }
+  };
+
+  const createDefaultCategories = async () => {
+    const defaultCategories = getDefaultCategories();
+    try {
+      await setDoc(doc(db, 'eventCategories', 'default'), {
+        categories: defaultCategories,
+        updated_at: new Date().toISOString()
+      });
+      setCategories(defaultCategories);
+      console.log('✅ Default categories created');
+    } catch (error) {
+      console.error('❌ Error creating default categories:', error);
+    }
+  };
+
+  const getDefaultCategories = (): EventCategory[] => [
+    { id: "lecture", label: "Lectures", color_bg: "#dbeafe", color_text: "#1e40af", order: 1, is_active: true },
+    { id: "class", label: "Class", color_bg: "#fef3c7", color_text: "#92400e", order: 2, is_active: true },
+    { id: "youth", label: "Youth", color_bg: "#fce7f3", color_text: "#9f1239", order: 3, is_active: true },
+    { id: "women", label: "Women", color_bg: "#f3e8ff", color_text: "#6b21a8", order: 4, is_active: true },
+    { id: "education", label: "Education", color_bg: "#dcfce7", color_text: "#15803d", order: 5, is_active: true },
+    { id: "charity", label: "Charity", color_bg: "#fff7ed", color_text: "#c2410c", order: 6, is_active: true },
+  ];
+
+  const getCategoryColors = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    if (category) {
+      return { bg: category.color_bg, text: category.color_text };
+    }
+    return { bg: '#e5e7eb', text: '#374151' };
+  };
+
+  const getCategoryLabel = (categoryId: string): string => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category?.label || categoryId;
+  };
+
+  // Load events from Firebase
   const loadEvents = async () => {
     try {
       setLoading(true);
@@ -439,6 +560,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
+  // Event CRUD operations
   const openModal = (event?: Event) => {
     if (event) {
       setEditingEvent(event);
@@ -451,7 +573,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         date: '',
         time: '',
         location: '',
-        category: 'lecture',
+        category: categories[0]?.id || '',
         speaker: '',
         image_url: '',
         rsvp_enabled: false,
@@ -525,6 +647,137 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
+  // Category CRUD operations
+  const openCategoryModal = (category?: EventCategory) => {
+    if (category) {
+      setEditingCategory({ ...category });
+    } else {
+      setEditingCategory({
+        id: `cat_${Date.now()}`,
+        label: '',
+        color_bg: '#e5e7eb',
+        color_text: '#374151',
+        order: categories.length + 1,
+        is_active: true
+      });
+    }
+    setShowCategoryModal(true);
+  };
+
+  const closeCategoryModal = () => {
+    setShowCategoryModal(false);
+    setEditingCategory(null);
+  };
+
+  const saveCategoryChanges = async (updatedCategory: EventCategory) => {
+    try {
+      const categoriesRef = doc(db, 'eventCategories', 'default');
+      const categoriesDoc = await getDoc(categoriesRef);
+      
+      let updatedCategories: EventCategory[];
+      
+      if (categoriesDoc.exists()) {
+        const data = categoriesDoc.data() as EventCategoriesConfig;
+        const existing = data.categories.find(c => c.id === updatedCategory.id);
+        
+        if (existing) {
+          // Update existing
+          updatedCategories = data.categories.map(c => 
+            c.id === updatedCategory.id ? updatedCategory : c
+          );
+        } else {
+          // Add new
+          updatedCategories = [...data.categories, updatedCategory];
+        }
+      } else {
+        updatedCategories = [updatedCategory];
+      }
+      
+      await setDoc(categoriesRef, {
+        categories: updatedCategories,
+        updated_at: new Date().toISOString()
+      });
+      
+      console.log('✅ Category saved');
+      onSaveStatusChange(true);
+      closeCategoryModal();
+      loadCategories();
+    } catch (error) {
+      console.error('❌ Error saving category:', error);
+      onSaveStatusChange(false);
+    }
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    const eventsWithCategory = events.filter(e => e.category === categoryId);
+    
+    if (eventsWithCategory.length > 0) {
+      const confirmed = window.confirm(
+        `${eventsWithCategory.length} event(s) use this category. ` +
+        `They will keep the category ID, but it won't appear in the dropdown. Continue?`
+      );
+      if (!confirmed) return;
+    }
+    
+    try {
+      const categoriesRef = doc(db, 'eventCategories', 'default');
+      const categoriesDoc = await getDoc(categoriesRef);
+      
+      if (categoriesDoc.exists()) {
+        const data = categoriesDoc.data() as EventCategoriesConfig;
+        const updatedCategories = data.categories.filter(c => c.id !== categoryId);
+        
+        await setDoc(categoriesRef, {
+          categories: updatedCategories,
+          updated_at: new Date().toISOString()
+        });
+        
+        console.log('✅ Category deleted');
+        onSaveStatusChange(true);
+        loadCategories();
+      }
+    } catch (error) {
+      console.error('❌ Error deleting category:', error);
+      onSaveStatusChange(false);
+    }
+  };
+
+  const moveCategoryUp = async (categoryId: string) => {
+    const index = categories.findIndex(c => c.id === categoryId);
+    if (index <= 0) return;
+    
+    const reordered = [...categories];
+    [reordered[index], reordered[index - 1]] = [reordered[index - 1], reordered[index]];
+    reordered.forEach((cat, i) => cat.order = i + 1);
+    
+    await saveAllCategories(reordered);
+  };
+
+  const moveCategoryDown = async (categoryId: string) => {
+    const index = categories.findIndex(c => c.id === categoryId);
+    if (index >= categories.length - 1) return;
+    
+    const reordered = [...categories];
+    [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+    reordered.forEach((cat, i) => cat.order = i + 1);
+    
+    await saveAllCategories(reordered);
+  };
+
+  const saveAllCategories = async (updatedCategories: EventCategory[]) => {
+    try {
+      await setDoc(doc(db, 'eventCategories', 'default'), {
+        categories: updatedCategories,
+        updated_at: new Date().toISOString()
+      });
+      setCategories(updatedCategories);
+      onSaveStatusChange(true);
+    } catch (error) {
+      console.error('Error saving categories:', error);
+      onSaveStatusChange(false);
+    }
+  };
+
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
@@ -545,105 +798,209 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
 
   return (
     <Card>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <CardTitle style={{ marginBottom: 0 }}>Events Management</CardTitle>
-        {events.length > 0 && (
-          <EventStats>
-            <StatItem>{upcomingCount} upcoming</StatItem>
-            <StatItem $muted>{pastCount} past</StatItem>
-          </EventStats>
-        )}
-      </div>
+      {/* Tab Navigation */}
+      <TabContainer>
+        <Tab 
+          $active={activeTab === 'events'}
+          onClick={() => setActiveTab('events')}
+        >
+          <Calendar size={20} />
+          Events
+        </Tab>
+        <Tab 
+          $active={activeTab === 'categories'}
+          onClick={() => setActiveTab('categories')}
+        >
+          <Tag size={20} />
+          Categories
+        </Tab>
+      </TabContainer>
 
-      <ButtonGroup>
-        <Button onClick={() => openModal()}>
-          <Plus size={20} />
-          Add New Event
-        </Button>
-      </ButtonGroup>
+      {/* Events Tab */}
+      {activeTab === 'events' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <CardTitle style={{ marginBottom: 0 }}>Events Management</CardTitle>
+            {events.length > 0 && (
+              <EventStats>
+                <StatItem>{upcomingCount} upcoming</StatItem>
+                <StatItem $muted>{pastCount} past</StatItem>
+              </EventStats>
+            )}
+          </div>
 
-      {loading ? (
-        <EmptyState>
-          <EmptyStateText>Loading events...</EmptyStateText>
-        </EmptyState>
-      ) : events.length === 0 ? (
-        <EmptyState>
-          <EmptyStateTitle>No events yet</EmptyStateTitle>
-          <EmptyStateText>
-            Create your first event to start engaging with your community
-          </EmptyStateText>
-          <Button onClick={() => openModal()}>
-            <Plus size={20} />
-            Add First Event
-          </Button>
-        </EmptyState>
-      ) : (
-        <EventsGrid>
-          {events.map(event => {
-            const pastEvent = isPastEvent(event.date);
-            
-            return (
-              <EventCard key={event.id} $active={event.is_active} $isPast={pastEvent}>
-                <EventCategory $category={event.category}>
-                  {event.category.toUpperCase()}
-                </EventCategory>
-                
-                <EventTitle>
-                  {event.title}
-                  {pastEvent && <PastEventBadge>PAST EVENT</PastEventBadge>}
-                </EventTitle>
-                
-                <EventDetail>
-                  <Calendar size={16} />
-                  {formatDate(event.date)} at {event.time}
-                </EventDetail>
-                
-                {event.location && (
-                  <EventDetail>
-                    <MapPin size={16} />
-                    {event.location}
-                  </EventDetail>
-                )}
-                
-                {event.speaker && (
-                  <EventDetail>
-                    👤 Speaker: {event.speaker}
-                  </EventDetail>
-                )}
+          <ButtonGroup>
+            <Button onClick={() => openModal()}>
+              <Plus size={20} />
+              Add New Event
+            </Button>
+          </ButtonGroup>
 
-                {event.rsvp_enabled && (
-                  <EventDetail>
-                    <Users size={16} />
-                    {event.rsvp_count || 0} / {event.rsvp_limit || 'Unlimited'} RSVPs
-                  </EventDetail>
-                )}
+          {loading ? (
+            <EmptyState>
+              <EmptyStateText>Loading events...</EmptyStateText>
+            </EmptyState>
+          ) : events.length === 0 ? (
+            <EmptyState>
+              <EmptyStateTitle>No events yet</EmptyStateTitle>
+              <EmptyStateText>
+                Create your first event to start engaging with your community
+              </EmptyStateText>
+              <Button onClick={() => openModal()}>
+                <Plus size={20} />
+                Add First Event
+              </Button>
+            </EmptyState>
+          ) : (
+            <EventsGrid>
+              {events.map(event => {
+                const pastEvent = isPastEvent(event.date);
+                const categoryColors = getCategoryColors(event.category);
                 
-                <EventDescription>
-                  {event.description.length > 120 
-                    ? event.description.substring(0, 120) + '...' 
-                    : event.description}
-                </EventDescription>
-                
-                <EventActions>
-                  <SmallButton onClick={() => openModal(event)}>
-                    <Edit2 size={16} />
-                    Edit
-                  </SmallButton>
-                  <SmallButton 
-                    variant="danger"
-                    onClick={() => handleDeleteEvent(event.id)}
-                  >
-                    <Trash2 size={16} />
-                    {pastEvent ? 'Delete Past Event' : 'Delete'}
-                  </SmallButton>
-                </EventActions>
-              </EventCard>
-            );
-          })}
-        </EventsGrid>
+                return (
+                  <EventCard key={event.id} $active={event.is_active} $isPast={pastEvent}>
+                    <EventCategoryBadge 
+                      style={{ 
+                        background: categoryColors.bg, 
+                        color: categoryColors.text 
+                      }}
+                    >
+                      {getCategoryLabel(event.category).toUpperCase()}
+                    </EventCategoryBadge>
+                    
+                    <EventTitle>
+                      {event.title}
+                      {pastEvent && <PastEventBadge>PAST EVENT</PastEventBadge>}
+                    </EventTitle>
+                    
+                    <EventDetail>
+                      <Calendar size={16} />
+                      {formatDate(event.date)} at {event.time}
+                    </EventDetail>
+                    
+                    {event.location && (
+                      <EventDetail>
+                        <MapPin size={16} />
+                        {event.location}
+                      </EventDetail>
+                    )}
+                    
+                    {event.speaker && (
+                      <EventDetail>
+                        👤 Speaker: {event.speaker}
+                      </EventDetail>
+                    )}
+
+                    {event.rsvp_enabled && (
+                      <EventDetail>
+                        <Users size={16} />
+                        {event.rsvp_count || 0} / {event.rsvp_limit || 'Unlimited'} RSVPs
+                      </EventDetail>
+                    )}
+                    
+                    <EventDescription>
+                      {event.description.length > 120 
+                        ? event.description.substring(0, 120) + '...' 
+                        : event.description}
+                    </EventDescription>
+                    
+                    <EventActions>
+                      <SmallButton onClick={() => openModal(event)}>
+                        <Edit2 size={16} />
+                        Edit
+                      </SmallButton>
+                      <SmallButton 
+                        variant="danger"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
+                        <Trash2 size={16} />
+                        {pastEvent ? 'Delete Past Event' : 'Delete'}
+                      </SmallButton>
+                    </EventActions>
+                  </EventCard>
+                );
+              })}
+            </EventsGrid>
+          )}
+        </>
       )}
 
-      {/* Modal for Add/Edit Event */}
+      {/* Categories Tab */}
+      {activeTab === 'categories' && (
+        <>
+          <CardTitle>Manage Event Categories</CardTitle>
+          
+          <ButtonGroup>
+            <Button onClick={() => openCategoryModal()}>
+              <Plus size={20} />
+              Add Category
+            </Button>
+          </ButtonGroup>
+
+          {categories.length === 0 ? (
+            <EmptyState>
+              <EmptyStateTitle>No categories</EmptyStateTitle>
+              <EmptyStateText>Add your first category to organize events</EmptyStateText>
+            </EmptyState>
+          ) : (
+            <CategoriesGrid>
+              {categories.map((category, index) => (
+                <CategoryCard key={category.id}>
+                  <CategoryPreview 
+                    style={{ 
+                      background: category.color_bg, 
+                      color: category.color_text 
+                    }}
+                  >
+                    {category.label.toUpperCase()}
+                  </CategoryPreview>
+                  
+                  <CategoryLabel>{category.label}</CategoryLabel>
+                  
+                  <CategoryColors>
+                    <ColorSwatch style={{ background: category.color_bg }}>
+                      <span>BG</span>
+                    </ColorSwatch>
+                    <ColorSwatch style={{ background: category.color_text }}>
+                      <span>Text</span>
+                    </ColorSwatch>
+                  </CategoryColors>
+                  
+                  <CategoryActions>
+                    <SmallButton onClick={() => openCategoryModal(category)}>
+                      <Edit2 size={14} />
+                      Edit
+                    </SmallButton>
+                    
+                    <SmallButton 
+                      onClick={() => moveCategoryUp(category.id)}
+                      disabled={index === 0}
+                    >
+                      ↑
+                    </SmallButton>
+                    
+                    <SmallButton 
+                      onClick={() => moveCategoryDown(category.id)}
+                      disabled={index === categories.length - 1}
+                    >
+                      ↓
+                    </SmallButton>
+                    
+                    <SmallButton 
+                      variant="danger"
+                      onClick={() => deleteCategory(category.id)}
+                    >
+                      <Trash2 size={14} />
+                    </SmallButton>
+                  </CategoryActions>
+                </CategoryCard>
+              ))}
+            </CategoriesGrid>
+          )}
+        </>
+      )}
+
+      {/* Event Modal */}
       <Modal $show={showModal} onClick={closeModal}>
         <ModalContent onClick={(e) => e.stopPropagation()}>
           <ModalHeader>
@@ -699,16 +1056,14 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
             <FormGroup>
               <Label>Category</Label>
               <Select
-                value={formData.category || 'lecture'}
+                value={formData.category || categories[0]?.id}
                 onChange={(e) => handleInputChange('category', e.target.value)}
               >
-                <option value="lecture">Lecture</option>
-                <option value="community">Community</option>
-                <option value="youth">Youth</option>
-                <option value="women">Women</option>
-                <option value="education">Education</option>
-                <option value="charity">Charity</option>
-                <option value="other">Other</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.label}
+                  </option>
+                ))}
               </Select>
             </FormGroup>
 
@@ -789,6 +1144,131 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
               </Button>
             </ButtonGroup>
           </Form>
+        </ModalContent>
+      </Modal>
+
+      {/* Category Edit Modal */}
+      <Modal $show={showCategoryModal} onClick={closeCategoryModal}>
+        <ModalContent onClick={(e) => e.stopPropagation()}>
+          <ModalHeader>
+            <ModalTitle>
+              {editingCategory?.label ? 'Edit Category' : 'Add New Category'}
+            </ModalTitle>
+            <CloseButton onClick={closeCategoryModal}>
+              <X size={24} />
+            </CloseButton>
+          </ModalHeader>
+
+          {editingCategory && (
+            <Form>
+              <FormGroup>
+                <Label>Category Name *</Label>
+                <Input
+                  type="text"
+                  value={editingCategory.label}
+                  onChange={(e) => setEditingCategory({
+                    ...editingCategory,
+                    label: e.target.value
+                  })}
+                  placeholder="e.g., Ramadan Special"
+                />
+              </FormGroup>
+
+              <TwoColumnGrid>
+                <FormGroup>
+                  <Label>Background Color</Label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <Input
+                      type="color"
+                      value={editingCategory.color_bg}
+                      onChange={(e) => setEditingCategory({
+                        ...editingCategory,
+                        color_bg: e.target.value
+                      })}
+                      style={{ width: '80px', padding: '0.5rem' }}
+                    />
+                    <Input
+                      type="text"
+                      value={editingCategory.color_bg}
+                      onChange={(e) => setEditingCategory({
+                        ...editingCategory,
+                        color_bg: e.target.value
+                      })}
+                      placeholder="#dbeafe"
+                    />
+                  </div>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Text Color</Label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <Input
+                      type="color"
+                      value={editingCategory.color_text}
+                      onChange={(e) => setEditingCategory({
+                        ...editingCategory,
+                        color_text: e.target.value
+                      })}
+                      style={{ width: '80px', padding: '0.5rem' }}
+                    />
+                    <Input
+                      type="text"
+                      value={editingCategory.color_text}
+                      onChange={(e) => setEditingCategory({
+                        ...editingCategory,
+                        color_text: e.target.value
+                      })}
+                      placeholder="#1e40af"
+                    />
+                  </div>
+                </FormGroup>
+              </TwoColumnGrid>
+
+              <FormGroup>
+                <Label>Preview</Label>
+                <div 
+                  style={{ 
+                    background: editingCategory.color_bg, 
+                    color: editingCategory.color_text,
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.5rem',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {editingCategory.label.toUpperCase() || 'CATEGORY NAME'}
+                </div>
+              </FormGroup>
+
+              <FormGroup>
+                <CheckboxLabel>
+                  <Checkbox
+                    type="checkbox"
+                    checked={editingCategory.is_active}
+                    onChange={(e) => setEditingCategory({
+                      ...editingCategory,
+                      is_active: e.target.checked
+                    })}
+                  />
+                  Active (visible in event creation)
+                </CheckboxLabel>
+              </FormGroup>
+
+              <ButtonGroup>
+                <Button onClick={() => saveCategoryChanges(editingCategory)}>
+                  <Save size={20} />
+                  Save Category
+                </Button>
+                <Button 
+                  onClick={closeCategoryModal}
+                  style={{ background: '#6b7280' }}
+                >
+                  Cancel
+                </Button>
+              </ButtonGroup>
+            </Form>
+          )}
         </ModalContent>
       </Modal>
     </Card>

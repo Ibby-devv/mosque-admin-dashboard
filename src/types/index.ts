@@ -58,7 +58,7 @@ export interface Event {
   date: string; // ISO date string (YYYY-MM-DD)
   time: string; // e.g., "7:00 PM"
   location?: string;
-  category: 'lecture' | 'community' | 'youth' | 'women' | 'education' | 'charity' | 'other';
+  category: string;
   speaker?: string;
   image_url?: string;
   rsvp_enabled?: boolean;
@@ -67,6 +67,21 @@ export interface Event {
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface EventCategory {
+  id: string;
+  label: string;
+  color_bg: string;
+  color_text: string;
+  order: number;
+  is_active: boolean;
+}
+
+// NEW: Event Categories Config (for Firestore document)
+export interface EventCategoriesConfig {
+  categories: EventCategory[];
+  updated_at: string;
 }
 
 // Component Props Types

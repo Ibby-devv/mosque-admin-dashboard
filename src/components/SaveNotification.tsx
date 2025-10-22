@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { SaveNotificationProps } from '../types';
 
-const Notification = styled.div<{ success: boolean }>`
+const Notification = styled.div<{ $success: boolean }>`
   position: fixed;
   top: 5rem;
   right: 1.5rem;
@@ -13,7 +13,7 @@ const Notification = styled.div<{ success: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: ${props => props.success ? '#10b981' : '#ef4444'};
+  background: ${props => props.$success ? '#10b981' : '#ef4444'};
   color: white;
   z-index: 50;
   animation: slideIn 0.3s ease-out;
@@ -36,7 +36,7 @@ export default function SaveNotification({ status, message }: SaveNotificationPr
   const isSuccess = status === 'success';
 
   return (
-    <Notification success={isSuccess}>
+    <Notification $success={isSuccess}>
       {isSuccess ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
       {message || (isSuccess ? 'Saved to Firebase successfully!' : 'Error saving to Firebase')}
     </Notification>
