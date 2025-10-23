@@ -13,6 +13,7 @@ const TabsWrapper = styled.div`
   padding: 0 1.5rem;
   display: flex;
   gap: 1.5rem;
+  overflow-x: auto;
 `;
 
 const Tab = styled.button<{ $active: boolean }>`
@@ -25,6 +26,7 @@ const Tab = styled.button<{ $active: boolean }>`
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.875rem;
+  white-space: nowrap;
 
   &:hover {
     color: ${props => props.$active ? '#1e3a8a' : '#374151'};
@@ -41,8 +43,7 @@ export default function Tabs({ activeTab, onTabChange }: TabsProps): React.JSX.E
     { id: 'prayer', label: 'Daily Prayer Times' },
     { id: 'jumuah', label: 'Jumuah Times' },
     { id: 'events', label: 'Events' },
-    { id: 'donation-settings', label: '💰 Donation Settings' },
-    { id: 'donation-analytics', label: '📊 Donation Analytics' },
+    { id: 'donations', label: '💰 Donations' },
     { id: 'settings', label: 'Mosque Settings' }
   ];
 
