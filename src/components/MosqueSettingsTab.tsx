@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Save, MapPin } from 'lucide-react';
+import { Save, MapPin, ExternalLink, Info, AlertCircle } from 'lucide-react';
 import { MosqueSettingsTabProps } from '../types';
 
 const Card = styled.div`
@@ -129,12 +129,124 @@ const SaveButton = styled.button`
   }
 `;
 
+// NEW: Styled components for the coordinate helper
+const CoordinateHelper = styled.div`
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #f0f9ff;
+  border-radius: 0.5rem;
+  border-left: 4px solid #0ea5e9;
+`;
+
+const HelperHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+`;
+
+const HelperTitle = styled.div`
+  font-weight: 600;
+  color: #0c4a6e;
+`;
+
+const HelperSteps = styled.ol`
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #0c4a6e;
+  font-size: 0.875rem;
+`;
+
+const HelperStep = styled.li`
+  margin-bottom: 0.25rem;
+`;
+
+const MapButton = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #1e3a8a;
+  color: white;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+
+  &:hover {
+    background: #1e40af;
+  }
+`;
+
+// NEW: Styled components for validation
+const ErrorMessage = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #dc2626;
+`;
+
+const InputWithValidation = styled.div`
+  position: relative;
+`;
+
+const ValidationIcon = styled.div<{ $isValid: boolean }>`
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
+  color: ${props => props.$isValid ? '#10b981' : '#dc2626'};
+`;
+
 export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, saving }: MosqueSettingsTabProps): React.JSX.Element {
+  const [errors, setErrors] = useState({
+    latitude: '',
+    longitude: ''
+  });
+
+  const validateCoordinate = (value: string, type: 'latitude' | 'longitude'): string => {
+    const num = parseFloat(value);
+    
+    // Check if it's a valid number
+    if (isNaN(num)) {
+      return 'Must be a valid number';
+    }
+    
+    // Check range
+    if (type === 'latitude') {
+      if (num < -90 || num > 90) {
+        return 'Latitude must be between -90 and 90';
+      }
+    } else {
+      if (num < -180 || num > 180) {
+        return 'Longitude must be between -180 and 180';
+      }
+    }
+    
+    return '';
+  };
+
   const handleChange = (field: keyof typeof mosqueSettings, value: string | number | boolean): void => {
+    // Clear errors when user starts typing
+    if (field === 'latitude' || field === 'longitude') {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    
     onChange({
       ...mosqueSettings,
       [field]: value
     });
+  };
+
+  const handleCoordinateChange = (field: 'latitude' | 'longitude', value: string) => {
+    const numValue = parseFloat(value) || 0;
+    const error = validateCoordinate(value, field);
+    
+    setErrors(prev => ({ ...prev, [field]: error }));
+    handleChange(field, numValue);
   };
 
   const calculationMethods = [
@@ -152,6 +264,8 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
     { value: 13, label: 'Diyanet İşleri Başkanlığı, Turkey' },
     { value: 14, label: 'Spiritual Administration of Muslims of Russia' },
   ];
+
+  const hasErrors = errors.latitude || errors.longitude;
 
   return (
     <Card>
@@ -230,28 +344,93 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
         <TwoColumnGrid>
           <FormGroup>
             <Label>Latitude</Label>
-            <Input
-              type="number"
-              step="0.000001"
-              value={mosqueSettings?.latitude || ''}
-              onChange={(e) => handleChange('latitude', parseFloat(e.target.value))}
-              placeholder="-33.8688"
-            />
+            <InputWithValidation>
+              <Input
+                type="text"
+                value={mosqueSettings?.latitude || ''}
+                onChange={(e) => handleCoordinateChange('latitude', e.target.value)}
+                placeholder="-33.8688"
+                style={{ 
+                  borderColor: errors.latitude ? '#dc2626' : undefined,
+                  paddingRight: '2.5rem'
+                }}
+              />
+              {mosqueSettings?.latitude && !errors.latitude && (
+                <ValidationIcon $isValid={true}>
+                  ✓
+                </ValidationIcon>
+              )}
+              {errors.latitude && (
+                <ValidationIcon $isValid={false}>
+                  <AlertCircle size={16} />
+                </ValidationIcon>
+              )}
+            </InputWithValidation>
             <HelpText>Example: -33.8688 (Sydney)</HelpText>
+            {errors.latitude && (
+              <ErrorMessage>
+                <AlertCircle size={12} />
+                {errors.latitude}
+              </ErrorMessage>
+            )}
           </FormGroup>
 
           <FormGroup>
             <Label>Longitude</Label>
-            <Input
-              type="number"
-              step="0.000001"
-              value={mosqueSettings?.longitude || ''}
-              onChange={(e) => handleChange('longitude', parseFloat(e.target.value))}
-              placeholder="151.2093"
-            />
+            <InputWithValidation>
+              <Input
+                type="text"
+                value={mosqueSettings?.longitude || ''}
+                onChange={(e) => handleCoordinateChange('longitude', e.target.value)}
+                placeholder="151.2093"
+                style={{ 
+                  borderColor: errors.longitude ? '#dc2626' : undefined,
+                  paddingRight: '2.5rem'
+                }}
+              />
+              {mosqueSettings?.longitude && !errors.longitude && (
+                <ValidationIcon $isValid={true}>
+                  ✓
+                </ValidationIcon>
+              )}
+              {errors.longitude && (
+                <ValidationIcon $isValid={false}>
+                  <AlertCircle size={16} />
+                </ValidationIcon>
+              )}
+            </InputWithValidation>
             <HelpText>Example: 151.2093 (Sydney)</HelpText>
+            {errors.longitude && (
+              <ErrorMessage>
+                <AlertCircle size={12} />
+                {errors.longitude}
+              </ErrorMessage>
+            )}
           </FormGroup>
         </TwoColumnGrid>
+
+        {/* NEW: Coordinate helper section */}
+        <CoordinateHelper>
+          <HelperHeader>
+            <Info size={16} color="#0ea5e9" />
+            <HelperTitle>Need help finding coordinates?</HelperTitle>
+          </HelperHeader>
+          <HelperSteps>
+            <HelperStep>Click the button below to open Google Maps</HelperStep>
+            <HelperStep>Search for your mosque location</HelperStep>
+            <HelperStep>Right-click on the exact location</HelperStep>
+            <HelperStep>Select the coordinates from the popup menu</HelperStep>
+            <HelperStep>Copy and paste them into the fields above</HelperStep>
+          </HelperSteps>
+          <MapButton 
+            href="https://www.google.com/maps" 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <ExternalLink size={16} />
+            Open Google Maps
+          </MapButton>
+        </CoordinateHelper>
 
         <FormGroup>
           <Label>Prayer Time Calculation Method</Label>
@@ -271,7 +450,11 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
         </FormGroup>
       </SettingsForm>
 
-      <SaveButton onClick={onSave} disabled={saving}>
+      <SaveButton 
+        onClick={onSave} 
+        disabled={saving || hasErrors}
+        title={hasErrors ? 'Please fix coordinate errors before saving' : undefined}
+      >
         <Save size={20} />
         {saving ? 'Saving...' : 'Save Mosque Settings'}
       </SaveButton>
