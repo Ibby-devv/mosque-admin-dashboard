@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Save, MapPin, ExternalLink, Info, AlertCircle } from 'lucide-react';
 import { MosqueSettingsTabProps } from '../types';
@@ -207,8 +207,19 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
     longitude: ''
   });
 
-  const validateCoordinate = (value: string, type: 'latitude' | 'longitude'): string => {
-    const num = parseFloat(value);
+  const validateCoordinate = (value: string | number | undefined, type: 'latitude' | 'longitude'): string => {
+    // Handle undefined, null, or empty string
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+    
+    // Convert to string and trim
+    const strValue = String(value).trim();
+    if (strValue === '') {
+      return '';
+    }
+    
+    const num = parseFloat(strValue);
     
     // Check if it's a valid number
     if (isNaN(num)) {
@@ -230,11 +241,6 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   };
 
   const handleChange = (field: keyof typeof mosqueSettings, value: string | number | boolean): void => {
-    // Clear errors when user starts typing
-    if (field === 'latitude' || field === 'longitude') {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-    
     onChange({
       ...mosqueSettings,
       [field]: value
@@ -242,12 +248,34 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   };
 
   const handleCoordinateChange = (field: 'latitude' | 'longitude', value: string) => {
-    const numValue = parseFloat(value) || 0;
+    // Validate the input
     const error = validateCoordinate(value, field);
     
+    // Update errors state
     setErrors(prev => ({ ...prev, [field]: error }));
+    
+    // Convert to number (0 if empty or invalid)
+    let numValue = 0;
+    if (value && value.trim() !== '') {
+      const parsed = parseFloat(value);
+      if (!isNaN(parsed)) {
+        numValue = parsed;
+      }
+    }
+    
+    // Update the field
     handleChange(field, numValue);
   };
+
+  // Validate on mount and when mosqueSettings changes
+  useEffect(() => {
+    if (mosqueSettings) {
+      setErrors({
+        latitude: validateCoordinate(mosqueSettings.latitude, 'latitude'),
+        longitude: validateCoordinate(mosqueSettings.longitude, 'longitude')
+      });
+    }
+  }, [mosqueSettings?.latitude, mosqueSettings?.longitude]);
 
   const calculationMethods = [
     { value: 1, label: 'University of Islamic Sciences, Karachi' },
@@ -265,7 +293,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
     { value: 14, label: 'Spiritual Administration of Muslims of Russia' },
   ];
 
-  const hasErrors = errors.latitude || errors.longitude;
+  const hasErrors = !!errors.latitude || !!errors.longitude;
 
   return (
     <Card>
@@ -355,7 +383,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
                   paddingRight: '2.5rem'
                 }}
               />
-              {mosqueSettings?.latitude && !errors.latitude && (
+              {mosqueSettings?.latitude !== undefined && mosqueSettings?.latitude !== null && mosqueSettings?.latitude !== 0 && !errors.latitude && (
                 <ValidationIcon $isValid={true}>
                   ✓
                 </ValidationIcon>
@@ -388,7 +416,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
                   paddingRight: '2.5rem'
                 }}
               />
-              {mosqueSettings?.longitude && !errors.longitude && (
+              {mosqueSettings?.longitude !== undefined && mosqueSettings?.longitude !== null && mosqueSettings?.longitude !== 0 && !errors.longitude && (
                 <ValidationIcon $isValid={true}>
                   ✓
                 </ValidationIcon>
