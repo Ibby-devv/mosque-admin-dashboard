@@ -29,13 +29,16 @@ export interface PrayerTimes {
   last_updated?: string;
 }
 
-export interface JumuahTimes {
-  first_khutbah: string;
-  first_prayer: string;
-  second_khutbah: string;
-  second_prayer: string;
-  last_updated?: string;
+export interface JumuahTime {
+  id: string;
+  khutbah: string;
 }
+
+export interface JumuahData {
+  times: JumuahTime[];
+  last_updated: string;
+}
+
 
 export interface MosqueSettings {
   name: string;
@@ -114,9 +117,9 @@ export interface PrayerTimesTabProps {
 }
 
 export interface JumuahTimesTabProps {
-  jumuahTimes: JumuahTimes;
-  onChange: (times: JumuahTimes) => void;
-  onSave: () => void;
+  jumuahTimes: JumuahData | null;
+  onChange: (data: JumuahData) => void;
+  onSave: () => Promise<void>;
   saving: boolean;
 }
 

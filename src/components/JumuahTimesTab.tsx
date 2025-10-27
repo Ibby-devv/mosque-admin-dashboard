@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
-import { Save, Plus, Trash2, X } from 'lucide-react';
-import { JumuahTimesTabProps } from '../types';
+import React, { useState, useEffect } from "react";
+import styled from "styled-components";
+import { Save, Plus, Trash2, X } from "lucide-react";
+import { JumuahTimesTabProps } from "../types";
 
 // Define the new data structure for Jumuah times
 interface JumuahTime {
@@ -48,10 +48,15 @@ const UnsavedIndicator = styled.div`
   background: #f59e0b;
   border-radius: 50%;
   animation: pulse 2s infinite;
-  
+
   @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
   }
 `;
 
@@ -60,7 +65,7 @@ const ButtonGroup = styled.div`
   gap: 0.75rem;
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'danger' }>`
+const Button = styled.button<{ variant?: "primary" | "danger" }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -70,15 +75,13 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' }>`
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${props => 
-    props.variant === 'danger' ? '#dc2626' : '#1e3a8a'
-  };
+  background: ${(props) =>
+    props.variant === "danger" ? "#dc2626" : "#1e3a8a"};
   color: white;
 
   &:hover {
-    background: ${props => 
-      props.variant === 'danger' ? '#b91c1c' : '#1e40af'
-    };
+    background: ${(props) =>
+      props.variant === "danger" ? "#b91c1c" : "#1e40af"};
   }
 
   &:disabled {
@@ -87,7 +90,7 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' }>`
   }
 `;
 
-const SmallButton = styled.button<{ variant?: 'primary' | 'danger' }>`
+const SmallButton = styled.button<{ variant?: "primary" | "danger" }>`
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -98,11 +101,13 @@ const SmallButton = styled.button<{ variant?: 'primary' | 'danger' }>`
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${props => props.variant === 'danger' ? '#dc2626' : '#1e3a8a'};
+  background: ${(props) =>
+    props.variant === "danger" ? "#dc2626" : "#1e3a8a"};
   color: white;
 
   &:hover {
-    background: ${props => props.variant === 'danger' ? '#b91c1c' : '#1e40af'};
+    background: ${(props) =>
+      props.variant === "danger" ? "#b91c1c" : "#1e40af"};
   }
 
   &:disabled {
@@ -119,9 +124,11 @@ const JumuahGrid = styled.div`
 `;
 
 const JumuahCard = styled.div`
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border: 1px solid #10b981;
+  background: #f0fbfd;
+  border-radius: 0.75rem;
+  border-left: 4px solid #10b981;
+  padding: 1.25rem;
   position: relative;
 `;
 
@@ -168,7 +175,7 @@ const CardActions = styled.div`
 `;
 
 const Modal = styled.div<{ $show: boolean }>`
-  display: ${props => props.$show ? 'block' : 'none'};
+  display: ${(props) => (props.$show ? "block" : "none")};
   position: fixed;
   top: 0;
   left: 0;
@@ -207,7 +214,7 @@ const CloseButton = styled.button`
   cursor: pointer;
   padding: 0.5rem;
   color: #6b7280;
-  
+
   &:hover {
     color: #1f2937;
   }
@@ -249,7 +256,7 @@ const SaveButton = styled.button<{ $hasChanges?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: ${props => props.$hasChanges ? '#f59e0b' : '#1e3a8a'};
+  background: ${(props) => (props.$hasChanges ? "#f59e0b" : "#1e3a8a")};
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
@@ -259,7 +266,7 @@ const SaveButton = styled.button<{ $hasChanges?: boolean }>`
   transition: all 0.2s;
 
   &:hover {
-    background: ${props => props.$hasChanges ? '#d97706' : '#1e40af'};
+    background: ${(props) => (props.$hasChanges ? "#d97706" : "#1e40af")};
   }
 
   &:active {
@@ -272,43 +279,33 @@ const SaveButton = styled.button<{ $hasChanges?: boolean }>`
   }
 `;
 
-export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }: JumuahTimesTabProps): React.JSX.Element {
+export default function JumuahTimesTab({
+  jumuahTimes,
+  onChange,
+  onSave,
+  saving,
+}: JumuahTimesTabProps): React.JSX.Element {
   const [jumuahData, setJumuahData] = useState<JumuahData>({
     times: [],
-    last_updated: new Date().toISOString().split('T')[0]
+    last_updated: new Date().toISOString().split("T")[0],
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingTime, setEditingTime] = useState<JumuahTime | null>(null);
   const [formData, setFormData] = useState<Partial<JumuahTime>>({
-    id: '',
-    khutbah: ''
+    id: "",
+    khutbah: "",
   });
 
   // Initialize data from props
   useEffect(() => {
     if (jumuahTimes && jumuahTimes.times) {
       setJumuahData(jumuahTimes as JumuahData);
-    } else if (jumuahTimes && !jumuahTimes.times) {
-      // Convert old format to new format
-      const newTimes: JumuahTime[] = [];
-      
-      if (jumuahTimes.first_khutbah) {
-        newTimes.push({ id: '1', khutbah: jumuahTimes.first_khutbah });
-      }
-      
-      if (jumuahTimes.second_khutbah) {
-        newTimes.push({ id: '2', khutbah: jumuahTimes.second_khutbah });
-      }
-      
-      setJumuahData({
-        times: newTimes,
-        last_updated: jumuahTimes.last_updated || new Date().toISOString().split('T')[0]
-      });
     } else {
+      // Create default structure with one empty time
       setJumuahData({
-        times: [{ id: '1', khutbah: '' }],
-        last_updated: new Date().toISOString().split('T')[0]
+        times: [{ id: "1", khutbah: "" }],
+        last_updated: new Date().toISOString().split("T")[0],
       });
     }
   }, [jumuahTimes]);
@@ -317,17 +314,21 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
     setHasChanges(true);
   };
 
-  const handleChange = (id: string, field: keyof JumuahTime, value: string): void => {
-    const updatedTimes = jumuahData.times.map(time => 
+  const handleChange = (
+    id: string,
+    field: keyof JumuahTime,
+    value: string
+  ): void => {
+    const updatedTimes = jumuahData.times.map((time) =>
       time.id === id ? { ...time, [field]: value } : time
     );
-    
+
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split('T')[0]
+      last_updated: new Date().toISOString().split("T")[0],
     };
-    
+
     setJumuahData(updatedData);
     onChange(updatedData);
     markAsChanged();
@@ -341,7 +342,7 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
       setEditingTime(null);
       setFormData({
         id: `${jumuahData.times.length + 1}`,
-        khutbah: ''
+        khutbah: "",
       });
     }
     setShowModal(true);
@@ -353,19 +354,19 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
   };
 
   const handleInputChange = (field: keyof JumuahTime, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSaveTime = () => {
     if (!formData.khutbah) {
-      alert('Please fill in the Khutbah time');
+      alert("Please fill in the Khutbah time");
       return;
     }
 
     let updatedTimes;
     if (editingTime) {
-      updatedTimes = jumuahData.times.map(time => 
-        time.id === editingTime.id ? formData as JumuahTime : time
+      updatedTimes = jumuahData.times.map((time) =>
+        time.id === editingTime.id ? (formData as JumuahTime) : time
       );
     } else {
       updatedTimes = [...jumuahData.times, formData as JumuahTime];
@@ -374,9 +375,9 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split('T')[0]
+      last_updated: new Date().toISOString().split("T")[0],
     };
-    
+
     setJumuahData(updatedData);
     onChange(updatedData);
     markAsChanged();
@@ -384,18 +385,18 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
   };
 
   const handleDeleteTime = (id: string) => {
-    if (id === '1') {
-      alert('The first Jumuah time cannot be deleted');
+    if (id === "1") {
+      alert("The first Jumuah time cannot be deleted");
       return;
     }
 
-    const updatedTimes = jumuahData.times.filter(time => time.id !== id);
+    const updatedTimes = jumuahData.times.filter((time) => time.id !== id);
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split('T')[0]
+      last_updated: new Date().toISOString().split("T")[0],
     };
-    
+
     setJumuahData(updatedData);
     onChange(updatedData);
     markAsChanged();
@@ -407,7 +408,7 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
   };
 
   const getJumuahNumber = (id: string): number => {
-    const index = jumuahData.times.findIndex(time => time.id === id);
+    const index = jumuahData.times.findIndex((time) => time.id === id);
     return index + 1;
   };
 
@@ -425,36 +426,52 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
           </Button>
         </ButtonGroup>
       </HeaderRow>
-      
+
       <JumuahGrid>
         {jumuahData.times.map((time) => {
           const jumuahNumber = getJumuahNumber(time.id);
           const isFirst = jumuahNumber === 1;
-          
+
           return (
             <JumuahCard key={time.id}>
               <JumuahTitle>
-                Jumuah {jumuahNumber}
-                {isFirst && <span style={{ fontSize: '0.875rem', color: '#6b7280', marginLeft: '0.5rem' }}>(Default)</span>}
+                {jumuahData.times.length === 1
+                  ? "Jumuah"
+                  : `Jumuah ${jumuahNumber}`}
+                {isFirst && jumuahData.times.length > 1 && (
+                  <span
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "#6b7280",
+                      marginLeft: "0.5rem",
+                    }}
+                  >
+                    (Default)
+                  </span>
+                )}
               </JumuahTitle>
               <TimeInputGroup>
                 <TimeLabel>Khutbah Time</TimeLabel>
                 <TimeInput
                   type="text"
                   value={time.khutbah}
-                  onChange={(e) => handleChange(time.id, 'khutbah', e.target.value)}
+                  onChange={(e) =>
+                    handleChange(time.id, "khutbah", e.target.value)
+                  }
                   placeholder="e.g., 12:30 PM"
                 />
               </TimeInputGroup>
               <CardActions>
-                <SmallButton onClick={() => openModal(time)}>
-                  Edit
-                </SmallButton>
-                <SmallButton 
-                  variant="danger" 
+                <SmallButton onClick={() => openModal(time)}>Edit</SmallButton>
+                <SmallButton
+                  variant="danger"
                   onClick={() => handleDeleteTime(time.id)}
                   disabled={isFirst}
-                  title={isFirst ? 'The first Jumuah time cannot be deleted' : 'Delete this Jumuah time'}
+                  title={
+                    isFirst
+                      ? "The first Jumuah time cannot be deleted"
+                      : "Delete this Jumuah time"
+                  }
                 >
                   <Trash2 size={16} />
                 </SmallButton>
@@ -464,9 +481,17 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
         })}
       </JumuahGrid>
 
-      <SaveButton onClick={handleSave} disabled={saving} $hasChanges={hasChanges}>
+      <SaveButton
+        onClick={handleSave}
+        disabled={saving}
+        $hasChanges={hasChanges}
+      >
         <Save size={20} />
-        {saving ? 'Saving...' : (hasChanges ? 'Save Changes' : 'Save Jumuah Times')}
+        {saving
+          ? "Saving..."
+          : hasChanges
+          ? "Save Changes"
+          : "Save Jumuah Times"}
       </SaveButton>
 
       {/* Modal for adding/editing Jumuah times */}
@@ -474,7 +499,9 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
         <ModalContent onClick={(e) => e.stopPropagation()}>
           <ModalHeader>
             <ModalTitle>
-              {editingTime ? `Edit Jumuah ${getJumuahNumber(editingTime.id)}` : 'Add New Jumuah Time'}
+              {editingTime
+                ? `Edit Jumuah ${getJumuahNumber(editingTime.id)}`
+                : "Add New Jumuah Time"}
             </ModalTitle>
             <CloseButton onClick={closeModal}>
               <X size={24} />
@@ -486,8 +513,8 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
               <Label>Khutbah Time *</Label>
               <Input
                 type="text"
-                value={formData.khutbah || ''}
-                onChange={(e) => handleInputChange('khutbah', e.target.value)}
+                value={formData.khutbah || ""}
+                onChange={(e) => handleInputChange("khutbah", e.target.value)}
                 placeholder="e.g., 12:30 PM"
               />
             </FormGroup>
@@ -495,12 +522,9 @@ export default function JumuahTimesTab({ jumuahTimes, onChange, onSave, saving }
             <ButtonGroup>
               <Button onClick={handleSaveTime}>
                 <Save size={20} />
-                {editingTime ? 'Update Time' : 'Add Time'}
+                {editingTime ? "Update Time" : "Add Time"}
               </Button>
-              <Button 
-                onClick={closeModal}
-                style={{ background: '#6b7280' }}
-              >
+              <Button onClick={closeModal} style={{ background: "#6b7280" }}>
                 Cancel
               </Button>
             </ButtonGroup>
