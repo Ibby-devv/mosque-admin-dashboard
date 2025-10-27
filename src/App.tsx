@@ -18,6 +18,7 @@ import JumuahTimesTab from "./components/JumuahTimesTab";
 import MosqueSettingsTab from "./components/MosqueSettingsTab";
 import EventsTab from "./components/EventsTab";
 import DonationsTab from './components/DonationsTab';
+import NotificationsTab from './components/NotificationsTab';
 // Import custom hook
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 
@@ -346,6 +347,13 @@ export default function AdminDashboard(): React.JSX.Element {
             donationSettings={donationSettings}
             onSettingsChange={setDonationSettings}
             onSaveSettings={saveDonationSettings}
+            saving={saving}
+            onSaveStatusChange={showSaveStatus}
+          />
+        )}
+
+        {activeTab === 'notifications' && (
+          <NotificationsTab
             saving={saving}
             onSaveStatusChange={showSaveStatus}
           />
