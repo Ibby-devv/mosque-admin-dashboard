@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Save, MapPin, ExternalLink, Info, AlertCircle } from 'lucide-react';
+import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { MosqueSettingsTabProps } from '../types';
 
 const Card = styled.div`
@@ -129,7 +130,6 @@ const SaveButton = styled.button`
   }
 `;
 
-// NEW: Styled components for the coordinate helper
 const CoordinateHelper = styled.div`
   margin-top: 0.5rem;
   padding: 0.75rem;
@@ -180,7 +180,6 @@ const MapButton = styled.a`
   }
 `;
 
-// NEW: Styled components for validation
 const ErrorMessage = styled.div`
   display: flex;
   align-items: center;
@@ -201,19 +200,97 @@ const ValidationIcon = styled.div<{ $isValid: boolean }>`
   color: ${props => props.$isValid ? '#10b981' : '#dc2626'};
 `;
 
+// New styled components for geocoding
+const AddressInputGroup = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+`;
+
+const AddressInputWrapper = styled.div`
+  flex: 1;
+`;
+
+const GeocodeButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #2563eb;
+  }
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+`;
+
+const GeocodeResultBox = styled.div<{ $success: boolean }>`
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: ${props => props.$success ? '#d1fae5' : '#fee2e2'};
+  border: 1px solid ${props => props.$success ? '#10b981' : '#dc2626'};
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+`;
+
+const GeocodeResultIcon = styled.div<{ $success: boolean }>`
+  color: ${props => props.$success ? '#059669' : '#dc2626'};
+  flex-shrink: 0;
+`;
+
+const GeocodeResultText = styled.div`
+  flex: 1;
+`;
+
+const GeocodeResultTitle = styled.div<{ $success: boolean }>`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: ${props => props.$success ? '#065f46' : '#991b1b'};
+  margin-bottom: 0.25rem;
+`;
+
+const GeocodeResultMessage = styled.div<{ $success: boolean }>`
+  font-size: 0.75rem;
+  color: ${props => props.$success ? '#047857' : '#b91c1c'};
+`;
+
+interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+  formatted_address: string;
+}
+
 export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, saving }: MosqueSettingsTabProps): React.JSX.Element {
   const [errors, setErrors] = useState({
     latitude: '',
     longitude: ''
   });
 
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
   const validateCoordinate = (value: string | number | undefined, type: 'latitude' | 'longitude'): string => {
-    // Handle undefined, null, or empty string
     if (value === undefined || value === null || value === '') {
       return '';
     }
     
-    // Convert to string and trim
     const strValue = String(value).trim();
     if (strValue === '') {
       return '';
@@ -221,12 +298,10 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
     
     const num = parseFloat(strValue);
     
-    // Check if it's a valid number
     if (isNaN(num)) {
       return 'Must be a valid number';
     }
     
-    // Check range
     if (type === 'latitude') {
       if (num < -90 || num > 90) {
         return 'Latitude must be between -90 and 90';
@@ -248,13 +323,9 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   };
 
   const handleCoordinateChange = (field: 'latitude' | 'longitude', value: string) => {
-    // Validate the input
     const error = validateCoordinate(value, field);
-    
-    // Update errors state
     setErrors(prev => ({ ...prev, [field]: error }));
     
-    // Convert to number (0 if empty or invalid)
     let numValue = 0;
     if (value && value.trim() !== '') {
       const parsed = parseFloat(value);
@@ -263,11 +334,82 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
       }
     }
     
-    // Update the field
     handleChange(field, numValue);
   };
 
-  // Validate on mount and when mosqueSettings changes
+  const handleGeocodeAddress = async () => {
+    const address = mosqueSettings?.address?.trim();
+    
+    if (!address) {
+      setGeocodeResult({
+        success: false,
+        message: 'Please enter an address first'
+      });
+      return;
+    }
+
+    setGeocoding(true);
+    setGeocodeResult(null);
+
+    try {
+      // Initialize Firebase Functions with the correct region
+      const functions = getFunctions(undefined, 'australia-southeast1');
+      
+      // Create the callable function
+      const geocodeAddress = httpsCallable<{ address: string }, GeocodeResult>(
+        functions,
+        'geocodeAddress'
+      );
+
+      console.log('Calling geocodeAddress function with address:', address);
+
+      // Call the function
+      const result = await geocodeAddress({ address });
+      const data = result.data;
+
+      console.log('Geocoding result:', data);
+
+      // Update coordinates
+      onChange({
+        ...mosqueSettings,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        address: data.formatted_address
+      });
+
+      setGeocodeResult({
+        success: true,
+        message: `Found coordinates: ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}`
+      });
+
+      // Clear any coordinate errors
+      setErrors({ latitude: '', longitude: '' });
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => setGeocodeResult(null), 5000);
+
+    } catch (error: any) {
+      console.error('Geocoding error:', error);
+      
+      let errorMessage = 'Failed to find location. Please check the address and try again.';
+      
+      if (error.code === 'unauthenticated') {
+        errorMessage = 'Authentication error. Please try logging out and logging back in.';
+      } else if (error.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please ensure you are logged in as an admin.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setGeocodeResult({
+        success: false,
+        message: errorMessage
+      });
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   useEffect(() => {
     if (mosqueSettings) {
       setErrors({
@@ -311,11 +453,41 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
 
         <FormGroup>
           <Label>Address</Label>
-          <Input
-            type="text"
-            value={mosqueSettings?.address || ''}
-            onChange={(e) => handleChange('address', e.target.value)}
-          />
+          <AddressInputGroup>
+            <AddressInputWrapper>
+              <Input
+                type="text"
+                value={mosqueSettings?.address || ''}
+                onChange={(e) => handleChange('address', e.target.value)}
+                placeholder="e.g., 123 Main Street, Yagoona NSW 2199"
+              />
+            </AddressInputWrapper>
+            <GeocodeButton 
+              onClick={handleGeocodeAddress}
+              disabled={geocoding || !mosqueSettings?.address?.trim()}
+            >
+              <Search size={16} />
+              {geocoding ? 'Searching...' : 'Search'}
+            </GeocodeButton>
+          </AddressInputGroup>
+          <HelpText>
+            Enter your mosque's full address and click Search to automatically find coordinates
+          </HelpText>
+          {geocodeResult && (
+            <GeocodeResultBox $success={geocodeResult.success}>
+              <GeocodeResultIcon $success={geocodeResult.success}>
+                {geocodeResult.success ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+              </GeocodeResultIcon>
+              <GeocodeResultText>
+                <GeocodeResultTitle $success={geocodeResult.success}>
+                  {geocodeResult.success ? 'Location Found!' : 'Search Failed'}
+                </GeocodeResultTitle>
+                <GeocodeResultMessage $success={geocodeResult.success}>
+                  {geocodeResult.message}
+                </GeocodeResultMessage>
+              </GeocodeResultText>
+            </GeocodeResultBox>
+          )}
         </FormGroup>
 
         <TwoColumnGrid>
@@ -394,7 +566,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
                 </ValidationIcon>
               )}
             </InputWithValidation>
-            <HelpText>Example: -33.8688 (Sydney)</HelpText>
+            <HelpText>Auto-filled when you search address above</HelpText>
             {errors.latitude && (
               <ErrorMessage>
                 <AlertCircle size={12} />
@@ -427,7 +599,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
                 </ValidationIcon>
               )}
             </InputWithValidation>
-            <HelpText>Example: 151.2093 (Sydney)</HelpText>
+            <HelpText>Auto-filled when you search address above</HelpText>
             {errors.longitude && (
               <ErrorMessage>
                 <AlertCircle size={12} />
@@ -437,11 +609,10 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
           </FormGroup>
         </TwoColumnGrid>
 
-        {/* NEW: Coordinate helper section */}
         <CoordinateHelper>
           <HelperHeader>
             <Info size={16} color="#0ea5e9" />
-            <HelperTitle>Need help finding coordinates?</HelperTitle>
+            <HelperTitle>Manual coordinate entry (optional)</HelperTitle>
           </HelperHeader>
           <HelperSteps>
             <HelperStep>Click the button below to open Google Maps</HelperStep>

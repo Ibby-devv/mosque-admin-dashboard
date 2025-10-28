@@ -1,7 +1,7 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
-
+import { getFunctions, Functions } from 'firebase/functions';
 // Firebase configuration
 // TODO: Replace with your actual Firebase config
 const firebaseConfig = {
@@ -17,5 +17,5 @@ const firebaseConfig = {
 const app: FirebaseApp = initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
-
-export { auth, db };
+const functions: Functions = getFunctions(app, 'australia-southeast1');
+export { auth, db, functions };
