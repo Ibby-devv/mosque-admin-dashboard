@@ -38,7 +38,7 @@ export default function SaveNotification({ status, message }: SaveNotificationPr
   return (
     <Notification $success={isSuccess}>
       {isSuccess ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-      {message || (isSuccess ? 'Saved to Firebase successfully!' : 'Error saving to Firebase')}
+      {message || (isSuccess ? 'Saved to database successfully!' : 'Error saving to database')}
     </Notification>
   );
 }

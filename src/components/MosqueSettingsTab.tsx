@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { MosqueSettingsTabProps } from '../types';
@@ -102,11 +102,18 @@ const HelpText = styled.p`
   margin-bottom: 0;
 `;
 
-const SaveButton = styled.button`
+// 🔄 Pulse animation for unsaved changes
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+`;
+
+const SaveButton = styled.button<{ $dirty: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #1e3a8a;
+  background: ${props => props.$dirty ? '#f59e0b' : '#1e3a8a'};
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
@@ -114,10 +121,10 @@ const SaveButton = styled.button`
   border: none;
   cursor: pointer;
   margin-top: 1.5rem;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
 
   &:hover {
-    background: #1e40af;
+    background: ${props => props.$dirty ? '#d97706' : '#1e40af'};
   }
 
   &:active {
@@ -128,6 +135,8 @@ const SaveButton = styled.button`
     background: #9ca3af;
     cursor: not-allowed;
   }
+
+  ${props => props.$dirty && css`animation: ${pulse} 2s infinite;`}
 `;
 
 const CoordinateHelper = styled.div`
@@ -200,7 +209,6 @@ const ValidationIcon = styled.div<{ $isValid: boolean }>`
   color: ${props => props.$isValid ? '#10b981' : '#dc2626'};
 `;
 
-// New styled components for geocoding
 const AddressInputGroup = styled.div`
   display: flex;
   gap: 0.5rem;
@@ -275,136 +283,60 @@ interface GeocodeResult {
 }
 
 export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, saving }: MosqueSettingsTabProps): React.JSX.Element {
-  const [errors, setErrors] = useState({
-    latitude: '',
-    longitude: ''
-  });
-
+  const [errors, setErrors] = useState({ latitude: '', longitude: '' });
   const [geocoding, setGeocoding] = useState(false);
-  const [geocodeResult, setGeocodeResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
+  const [geocodeResult, setGeocodeResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const validateCoordinate = (value: string | number | undefined, type: 'latitude' | 'longitude'): string => {
-    if (value === undefined || value === null || value === '') {
-      return '';
-    }
-    
-    const strValue = String(value).trim();
-    if (strValue === '') {
-      return '';
-    }
-    
-    const num = parseFloat(strValue);
-    
-    if (isNaN(num)) {
-      return 'Must be a valid number';
-    }
-    
-    if (type === 'latitude') {
-      if (num < -90 || num > 90) {
-        return 'Latitude must be between -90 and 90';
-      }
-    } else {
-      if (num < -180 || num > 180) {
-        return 'Longitude must be between -180 and 180';
-      }
-    }
-    
+    if (value === undefined || value === null || value === '') return '';
+    const num = parseFloat(String(value).trim());
+    if (isNaN(num)) return 'Must be a valid number';
+    if (type === 'latitude' && (num < -90 || num > 90)) return 'Latitude must be between -90 and 90';
+    if (type === 'longitude' && (num < -180 || num > 180)) return 'Longitude must be between -180 and 180';
     return '';
   };
 
   const handleChange = (field: keyof typeof mosqueSettings, value: string | number | boolean): void => {
-    onChange({
-      ...mosqueSettings,
-      [field]: value
-    });
+    setHasUnsavedChanges(true);
+    onChange({ ...mosqueSettings, [field]: value });
   };
 
   const handleCoordinateChange = (field: 'latitude' | 'longitude', value: string) => {
     const error = validateCoordinate(value, field);
     setErrors(prev => ({ ...prev, [field]: error }));
-    
-    let numValue = 0;
-    if (value && value.trim() !== '') {
-      const parsed = parseFloat(value);
-      if (!isNaN(parsed)) {
-        numValue = parsed;
-      }
-    }
-    
+    setHasUnsavedChanges(true);
+    let numValue = parseFloat(value) || 0;
     handleChange(field, numValue);
+  };
+
+  const handleSave = async () => {
+    await onSave();
+    setHasUnsavedChanges(false);
   };
 
   const handleGeocodeAddress = async () => {
     const address = mosqueSettings?.address?.trim();
-    
     if (!address) {
-      setGeocodeResult({
-        success: false,
-        message: 'Please enter an address first'
-      });
+      setGeocodeResult({ success: false, message: 'Please enter an address first' });
       return;
     }
-
     setGeocoding(true);
     setGeocodeResult(null);
-
     try {
-      // Initialize Firebase Functions with the correct region
       const functions = getFunctions(undefined, 'australia-southeast1');
-      
-      // Create the callable function
-      const geocodeAddress = httpsCallable<{ address: string }, GeocodeResult>(
-        functions,
-        'geocodeAddress'
-      );
-
-      console.log('Calling geocodeAddress function with address:', address);
-
-      // Call the function
+      const geocodeAddress = httpsCallable<{ address: string }, GeocodeResult>(functions, 'geocodeAddress');
       const result = await geocodeAddress({ address });
       const data = result.data;
-
-      console.log('Geocoding result:', data);
-
-      // Update coordinates
-      onChange({
-        ...mosqueSettings,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        address: data.formatted_address
-      });
-
-      setGeocodeResult({
-        success: true,
-        message: `Found coordinates: ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}`
-      });
-
-      // Clear any coordinate errors
+      onChange({ ...mosqueSettings, latitude: data.latitude, longitude: data.longitude, address: data.formatted_address });
+      setHasUnsavedChanges(true);
+      setGeocodeResult({ success: true, message: `Found coordinates: ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}` });
       setErrors({ latitude: '', longitude: '' });
-
-      // Auto-dismiss success message after 5 seconds
       setTimeout(() => setGeocodeResult(null), 5000);
-
     } catch (error: any) {
       console.error('Geocoding error:', error);
-      
-      let errorMessage = 'Failed to find location. Please check the address and try again.';
-      
-      if (error.code === 'unauthenticated') {
-        errorMessage = 'Authentication error. Please try logging out and logging back in.';
-      } else if (error.code === 'permission-denied') {
-        errorMessage = 'Permission denied. Please ensure you are logged in as an admin.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setGeocodeResult({
-        success: false,
-        message: errorMessage
-      });
+      let errorMessage = error.message || 'Failed to find location. Please check the address and try again.';
+      setGeocodeResult({ success: false, message: errorMessage });
     } finally {
       setGeocoding(false);
     }
@@ -417,7 +349,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
         longitude: validateCoordinate(mosqueSettings.longitude, 'longitude')
       });
     }
-  }, [mosqueSettings?.latitude, mosqueSettings?.longitude]);
+  }, [mosqueSettings]);
 
   const calculationMethods = [
     { value: 1, label: 'University of Islamic Sciences, Karachi' },
@@ -436,6 +368,8 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   ];
 
   const hasErrors = !!errors.latitude || !!errors.longitude;
+
+
 
   return (
     <Card>
@@ -649,13 +583,14 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
         </FormGroup>
       </SettingsForm>
 
-      <SaveButton 
-        onClick={onSave} 
+       <SaveButton
+        onClick={handleSave}
         disabled={saving || hasErrors}
+        $dirty={hasUnsavedChanges}
         title={hasErrors ? 'Please fix coordinate errors before saving' : undefined}
       >
         <Save size={20} />
-        {saving ? 'Saving...' : 'Save Mosque Settings'}
+        {saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Saved'}
       </SaveButton>
     </Card>
   );
