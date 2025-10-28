@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import styled from "styled-components";
+import styled, { keyframes, css } from "styled-components";
 import { Save, Plus, Trash2, X } from "lucide-react";
 import { JumuahTimesTabProps } from "../types";
 
@@ -42,22 +42,20 @@ const TitleSection = styled.div`
   gap: 0.75rem;
 `;
 
+// Reuse the same pulse animation used in MosqueSettingsTab for visual consistency
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+`;
+
 const UnsavedIndicator = styled.div`
   width: 8px;
   height: 8px;
   background: #f59e0b;
   border-radius: 50%;
-  animation: pulse 2s infinite;
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
-  }
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
+  animation: ${pulse} 2s infinite;
 `;
 
 const ButtonGroup = styled.div`
@@ -277,6 +275,8 @@ const SaveButton = styled.button<{ $hasChanges?: boolean }>`
     background: #9ca3af;
     cursor: not-allowed;
   }
+
+  ${props => props.$hasChanges && css`animation: ${pulse} 2s infinite;`}
 `;
 
 export default function JumuahTimesTab({
@@ -312,26 +312,6 @@ export default function JumuahTimesTab({
 
   const markAsChanged = () => {
     setHasChanges(true);
-  };
-
-  const handleChange = (
-    id: string,
-    field: keyof JumuahTime,
-    value: string
-  ): void => {
-    const updatedTimes = jumuahData.times.map((time) =>
-      time.id === id ? { ...time, [field]: value } : time
-    );
-
-    const updatedData = {
-      ...jumuahData,
-      times: updatedTimes,
-      last_updated: new Date().toISOString().split("T")[0],
-    };
-
-    setJumuahData(updatedData);
-    onChange(updatedData);
-    markAsChanged();
   };
 
   const openModal = (time?: JumuahTime) => {
@@ -455,9 +435,7 @@ export default function JumuahTimesTab({
                 <TimeInput
                   type="text"
                   value={time.khutbah}
-                  onChange={(e) =>
-                    handleChange(time.id, "khutbah", e.target.value)
-                  }
+                  readOnly
                   placeholder="e.g., 12:30 PM"
                 />
               </TimeInputGroup>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
+import React, { useState, useEffect, useRef } from 'react';
+import styled, { keyframes, css } from 'styled-components';
 import { Save, RefreshCw, Globe } from 'lucide-react';
 import { PrayerTimesTabProps } from '../types';
 
@@ -220,11 +220,18 @@ const RefreshButton = styled.button`
   }
 `;
 
-const SaveButton = styled.button`
+// Pulse animation (match MosqueSettingsTab)
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+`;
+
+const SaveButton = styled.button<{ $dirty?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #1e3a8a;
+  background: ${props => props.$dirty ? '#f59e0b' : '#1e3a8a'};
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
@@ -235,7 +242,7 @@ const SaveButton = styled.button`
   
 
   &:hover {
-    background: #1e40af;
+    background: ${props => props.$dirty ? '#d97706' : '#1e40af'};
   }
 
   &:active {
@@ -246,6 +253,8 @@ const SaveButton = styled.button`
     background: #9ca3af;
     cursor: not-allowed;
   }
+
+  ${props => props.$dirty && css`animation: ${pulse} 2s infinite;`}
 `;
 
 const APIStatusBox = styled.div<{ $success: boolean }>`
@@ -263,6 +272,37 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
   const prayers: string[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
   const [fetchingPrayerTimes, setFetchingPrayerTimes] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<{ success: boolean; message: string } | null>(null);
+  // Keep a snapshot of the last-saved prayerTimes to detect unsaved changes
+  const initialSnapshotRef = useRef<string>(JSON.stringify(prayerTimes));
+
+  // Ensure initial snapshot is set on mount
+  useEffect(() => {
+    initialSnapshotRef.current = JSON.stringify(prayerTimes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When saving completes, update the snapshot to reflect the saved state
+  useEffect(() => {
+    if (!saving) {
+      initialSnapshotRef.current = JSON.stringify(prayerTimes);
+    }
+  }, [saving, prayerTimes]);
+
+  const isDirty = JSON.stringify(prayerTimes) !== initialSnapshotRef.current;
+
+  const handleSave = async () => {
+    try {
+      const maybePromise: any = (onSave as any)();
+      if (maybePromise && typeof maybePromise.then === 'function') {
+        await maybePromise;
+      }
+      // update snapshot after save (or immediately if onSave is not async)
+      initialSnapshotRef.current = JSON.stringify(prayerTimes);
+    } catch (err) {
+      // If save failed, keep dirty state so user knows changes weren't saved
+      console.error('Save failed', err);
+    }
+  };
 
   const handleTimeChange = (prayer: string, type: 'adhan' | 'iqama', value: string): void => {
     onChange({
@@ -543,7 +583,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
           {fetchingPrayerTimes ? 'Fetching...' : 'Refresh Prayer Times Now'}
         </RefreshButton>
         
-        <SaveButton onClick={onSave} disabled={saving}>
+        <SaveButton onClick={handleSave} disabled={saving} $dirty={isDirty}>
           <Save size={20} />
           {saving ? 'Saving...' : 'Save Prayer Times'}
         </SaveButton>

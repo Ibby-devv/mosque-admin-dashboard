@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag } from 'lucide-react';
 import { 
@@ -11,8 +11,7 @@ import {
   getDoc,
   setDoc,
   query,
-  orderBy,
-  Timestamp 
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, EventCategory, EventCategoriesConfig } from '../types';
@@ -472,18 +471,37 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     is_active: true,
   });
 
-  // Load events and categories on mount
-  useEffect(() => {
-    loadEvents();
-    loadCategories();
-  }, []);
+  
+
+  const getDefaultCategories = useCallback((): EventCategory[] => [
+    { id: "lecture", label: "Lectures", color_bg: "#dbeafe", color_text: "#1e40af", order: 1, is_active: true },
+    { id: "class", label: "Class", color_bg: "#fef3c7", color_text: "#92400e", order: 2, is_active: true },
+    { id: "youth", label: "Youth", color_bg: "#fce7f3", color_text: "#9f1239", order: 3, is_active: true },
+    { id: "women", label: "Women", color_bg: "#f3e8ff", color_text: "#6b21a8", order: 4, is_active: true },
+    { id: "education", label: "Education", color_bg: "#dcfce7", color_text: "#15803d", order: 5, is_active: true },
+    { id: "charity", label: "Charity", color_bg: "#fff7ed", color_text: "#c2410c", order: 6, is_active: true },
+  ], []);
+
+  const createDefaultCategories = useCallback(async () => {
+    const defaultCategories = getDefaultCategories();
+    try {
+      await setDoc(doc(db, 'eventCategories', 'default'), {
+        categories: defaultCategories,
+        updated_at: new Date().toISOString()
+      });
+      setCategories(defaultCategories);
+      console.log('✅ Default categories created');
+    } catch (error) {
+      console.error('❌ Error creating default categories:', error);
+    }
+  }, [getDefaultCategories]);
 
   // Load categories from Firestore
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const categoriesRef = doc(db, 'eventCategories', 'default');
       const categoriesDoc = await getDoc(categoriesRef);
-      
+
       if (categoriesDoc.exists()) {
         const data = categoriesDoc.data() as EventCategoriesConfig;
         const activeCategories = data.categories
@@ -499,30 +517,9 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
       console.error('Error loading categories:', error);
       setCategories(getDefaultCategories());
     }
-  };
+  }, [createDefaultCategories, getDefaultCategories]);
 
-  const createDefaultCategories = async () => {
-    const defaultCategories = getDefaultCategories();
-    try {
-      await setDoc(doc(db, 'eventCategories', 'default'), {
-        categories: defaultCategories,
-        updated_at: new Date().toISOString()
-      });
-      setCategories(defaultCategories);
-      console.log('✅ Default categories created');
-    } catch (error) {
-      console.error('❌ Error creating default categories:', error);
-    }
-  };
 
-  const getDefaultCategories = (): EventCategory[] => [
-    { id: "lecture", label: "Lectures", color_bg: "#dbeafe", color_text: "#1e40af", order: 1, is_active: true },
-    { id: "class", label: "Class", color_bg: "#fef3c7", color_text: "#92400e", order: 2, is_active: true },
-    { id: "youth", label: "Youth", color_bg: "#fce7f3", color_text: "#9f1239", order: 3, is_active: true },
-    { id: "women", label: "Women", color_bg: "#f3e8ff", color_text: "#6b21a8", order: 4, is_active: true },
-    { id: "education", label: "Education", color_bg: "#dcfce7", color_text: "#15803d", order: 5, is_active: true },
-    { id: "charity", label: "Charity", color_bg: "#fff7ed", color_text: "#c2410c", order: 6, is_active: true },
-  ];
 
   const getCategoryColors = (categoryId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
@@ -538,7 +535,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   };
 
   // Load events from Firebase
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     try {
       setLoading(true);
       const eventsRef = collection(db, 'events');
@@ -558,7 +555,13 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [onSaveStatusChange]);
+
+  // Load events and categories on mount
+  useEffect(() => {
+    loadEvents();
+    loadCategories();
+  }, [loadEvents, loadCategories]);
 
   // Event CRUD operations
   const openModal = (event?: Event) => {
