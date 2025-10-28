@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag } from 'lucide-react';
+import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import { 
   collection, 
   addDoc, 
@@ -112,7 +112,7 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' | 'success' }>`
   }
 `;
 
-const SmallButton = styled.button<{ variant?: 'primary' | 'danger' }>`
+const SmallButton = styled.button<{ variant?: 'primary' | 'danger' | 'success' }>`
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -123,11 +123,19 @@ const SmallButton = styled.button<{ variant?: 'primary' | 'danger' }>`
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${props => props.variant === 'danger' ? '#dc2626' : '#1e3a8a'};
+  background: ${props => 
+    props.variant === 'danger' ? '#dc2626' : 
+    props.variant === 'success' ? '#059669' :
+    '#1e3a8a'
+  };
   color: white;
 
   &:hover {
-    background: ${props => props.variant === 'danger' ? '#b91c1c' : '#1e40af'};
+    background: ${props => 
+      props.variant === 'danger' ? '#b91c1c' : 
+      props.variant === 'success' ? '#047857' :
+      '#1e40af'
+    };
   }
 
   &:disabled {
@@ -551,11 +559,10 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
       console.log('Events loaded:', loadedEvents.length);
     } catch (error) {
       console.error('Error loading events:', error);
-      onSaveStatusChange(false);
     } finally {
       setLoading(false);
     }
-  }, [onSaveStatusChange]);
+  }, []);
 
   // Load events and categories on mount
   useEffect(() => {
@@ -634,8 +641,46 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!window.confirm('Are you sure you want to delete this event?')) {
+  const handleCancelEvent = async (eventId: string, eventTitle: string) => {
+    if (!window.confirm(`Cancel "${eventTitle}"? Users will be notified.`)) {
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'events', eventId), {
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      });
+      console.log('Event cancelled:', eventId);
+      onSaveStatusChange(true);
+      loadEvents();
+    } catch (error) {
+      console.error('Error cancelling event:', error);
+      onSaveStatusChange(false);
+    }
+  };
+
+  const handleReactivateEvent = async (eventId: string, eventTitle: string) => {
+    if (!window.confirm(`Reactivate "${eventTitle}"? Users will be notified.`)) {
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'events', eventId), {
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      });
+      console.log('Event reactivated:', eventId);
+      onSaveStatusChange(true);
+      loadEvents();
+    } catch (error) {
+      console.error('Error reactivating event:', error);
+      onSaveStatusChange(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string, eventTitle: string) => {
+    if (!window.confirm(`Permanently delete "${eventTitle}"? This cannot be undone.`)) {
       return;
     }
 
@@ -874,6 +919,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
                     <EventTitle>
                       {event.title}
                       {pastEvent && <PastEventBadge>PAST EVENT</PastEventBadge>}
+                      {!event.is_active && !pastEvent && <PastEventBadge style={{ background: '#fecaca', color: '#991b1b' }}>CANCELLED</PastEventBadge>}
                     </EventTitle>
                     
                     <EventDetail>
@@ -912,13 +958,39 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
                         <Edit2 size={16} />
                         Edit
                       </SmallButton>
-                      <SmallButton 
-                        variant="danger"
-                        onClick={() => handleDeleteEvent(event.id)}
-                      >
-                        <Trash2 size={16} />
-                        {pastEvent ? 'Delete Past Event' : 'Delete'}
-                      </SmallButton>
+                      
+                      {/* Show Cancel button for upcoming active events */}
+                      {!pastEvent && event.is_active && (
+                        <SmallButton 
+                          variant="danger"
+                          onClick={() => handleCancelEvent(event.id, event.title)}
+                        >
+                          <X size={16} />
+                          Cancel Event
+                        </SmallButton>
+                      )}
+                      
+                      {/* Show Reactivate button for cancelled upcoming events */}
+                      {!pastEvent && !event.is_active && (
+                        <SmallButton 
+                          variant="success"
+                          onClick={() => handleReactivateEvent(event.id, event.title)}
+                        >
+                          <Check size={16} />
+                          Reactivate
+                        </SmallButton>
+                      )}
+                      
+                      {/* Show Delete button for past events or cancelled events */}
+                      {(pastEvent || !event.is_active) && (
+                        <SmallButton 
+                          variant="danger"
+                          onClick={() => handleDeleteEvent(event.id, event.title)}
+                        >
+                          <Trash2 size={16} />
+                          Delete
+                        </SmallButton>
+                      )}
                     </EventActions>
                   </EventCard>
                 );
@@ -979,14 +1051,14 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
                       onClick={() => moveCategoryUp(category.id)}
                       disabled={index === 0}
                     >
-                      ↑
+                      <ArrowUp size={14} />
                     </SmallButton>
                     
                     <SmallButton 
                       onClick={() => moveCategoryDown(category.id)}
                       disabled={index === categories.length - 1}
                     >
-                      ↓
+                      <ArrowDown size={14} />
                     </SmallButton>
                     
                     <SmallButton 
