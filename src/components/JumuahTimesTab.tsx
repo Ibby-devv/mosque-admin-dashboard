@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { Save, Plus, Trash2, X } from "lucide-react";
 import { JumuahTimesTabProps } from "../types";
+import TimeInput from './TimeInput';
 
 // Define the new data structure for Jumuah times
 interface JumuahTime {
@@ -149,7 +150,7 @@ const TimeLabel = styled.label`
   margin-bottom: 0.25rem;
 `;
 
-const TimeInput = styled.input`
+const ReadOnlyTimeDisplay = styled.input`
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 1px solid #d1d5db;
@@ -234,21 +235,7 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
-const Input = styled.input`
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  outline: none;
-  transition: all 0.2s;
-  box-sizing: border-box;
-
-  &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
-  }
-`;
+// Removed unused Input styled component - now using TimeInput component
 
 const SaveButton = styled.button<{ $hasChanges?: boolean }>`
   display: flex;
@@ -432,7 +419,7 @@ export default function JumuahTimesTab({
               </JumuahTitle>
               <TimeInputGroup>
                 <TimeLabel>Khutbah Time</TimeLabel>
-                <TimeInput
+                <ReadOnlyTimeDisplay
                   type="text"
                   value={time.khutbah}
                   readOnly
@@ -489,11 +476,11 @@ export default function JumuahTimesTab({
           <Form>
             <FormGroup>
               <Label>Khutbah Time *</Label>
-              <Input
-                type="text"
+              <TimeInput
                 value={formData.khutbah || ""}
-                onChange={(e) => handleInputChange("khutbah", e.target.value)}
-                placeholder="e.g., 12:30 PM"
+                onChange={(value) => handleInputChange("khutbah", value)}
+                placeholder="Select time"
+                required
               />
             </FormGroup>
 

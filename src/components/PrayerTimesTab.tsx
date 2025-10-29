@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { Save, RefreshCw, Globe } from 'lucide-react';
 import { PrayerTimesTabProps } from '../types';
+import TimeInput from './TimeInput';
 
 const Card = styled.div`
   background: white;
@@ -96,7 +97,7 @@ const TimeLabel = styled.label`
   margin-bottom: 0.25rem;
 `;
 
-const TimeInput = styled.input`
+const ReadOnlyTimeInput = styled.input`
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 1px solid #d1d5db;
@@ -505,7 +506,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
               
               <TimeInputGroup>
                 <TimeLabel>Adhan (Auto-calculated)</TimeLabel>
-                <TimeInput
+                <ReadOnlyTimeInput
                   type="text"
                   value={(prayerTimes as any)[`${prayer}_adhan`] || '--:--'}
                   disabled
@@ -537,10 +538,9 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                 <TimeInputGroup>
                   <TimeLabel>Iqama</TimeLabel>
                   <TimeInput
-                    type="text"
                     value={(prayerTimes as any)[`${prayer}_iqama`] || ''}
-                    onChange={(e) => handleTimeChange(prayer, 'iqama', e.target.value)}
-                    placeholder="e.g., 5:45 AM"
+                    onChange={(value) => handleTimeChange(prayer, 'iqama', value)}
+                    placeholder="Select time"
                   />
                 </TimeInputGroup>
               ) : (

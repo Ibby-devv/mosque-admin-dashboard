@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag, ArrowUp, ArrowDown, Check } from 'lucide-react';
+import TimeInput from './TimeInput';
 import { 
   collection, 
   addDoc, 
@@ -1119,11 +1120,11 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
 
               <FormGroup>
                 <Label>Time *</Label>
-                <Input
-                  type="text"
+                <TimeInput
                   value={formData.time || ''}
-                  onChange={(e) => handleInputChange('time', e.target.value)}
-                  placeholder="e.g., 7:00 PM"
+                  onChange={(value) => handleInputChange('time', value)}
+                  placeholder="Select time"
+                  required
                 />
               </FormGroup>
             </TwoColumnGrid>
