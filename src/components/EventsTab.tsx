@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { Theme, media } from '../constants/theme';
+import Card from './ui/Card';
 import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import TimeInput from './TimeInput';
 import { 
@@ -36,172 +38,184 @@ const isPastEvent = (eventDate: string): boolean => {
 };
 
 // Styled Components
-const Card = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-`;
 
 const TabContainer = styled.div`
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #e5e7eb;
+  gap: ${Theme.spacing.sm};
+  margin-bottom: ${Theme.spacing.xl};
+  border-bottom: 2px solid ${Theme.colors.border.base};
 `;
 
 const Tab = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
   border: none;
   background: none;
   cursor: pointer;
   font-weight: 600;
-  color: ${props => props.$active ? '#1e3a8a' : '#6b7280'};
-  border-bottom: 3px solid ${props => props.$active ? '#1e3a8a' : 'transparent'};
+  color: ${props => props.$active ? Theme.colors.brand.navy[700] : Theme.colors.text.muted};
+  border-bottom: 3px solid ${props => props.$active ? Theme.colors.brand.navy[700] : 'transparent'};
   margin-bottom: -2px;
   transition: all 0.2s;
 
-  &:hover {
-    color: #1e3a8a;
-  }
+  &:hover { color: ${Theme.colors.brand.navy[700]}; }
 `;
 
 const CardTitle = styled.h2`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.xl};
+
+  ${media.sm} { font-size: ${Theme.typography.h1}; }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: ${Theme.spacing.md};
+  margin-bottom: ${Theme.spacing.xl};
+  flex-wrap: wrap;
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'danger' | 'success' }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
+  font-size: ${Theme.typography.body};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   background: ${props => 
-    props.variant === 'danger' ? '#dc2626' :
-    props.variant === 'success' ? '#059669' :
-    '#1e3a8a'
+    props.variant === 'danger' ? Theme.colors.status.error :
+    props.variant === 'success' ? Theme.colors.status.success :
+    Theme.colors.brand.navy[700]
   };
   color: white;
 
   &:hover {
     background: ${props => 
-      props.variant === 'danger' ? '#b91c1c' :
-      props.variant === 'success' ? '#047857' :
-      '#1e40af'
+      props.variant === 'danger' ? Theme.colors.status.errorDark :
+      props.variant === 'success' ? Theme.colors.status.success :
+      Theme.colors.brand.navy[600]
     };
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
 const SmallButton = styled.button<{ variant?: 'primary' | 'danger' | 'success' }>`
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
+  gap: ${Theme.spacing.xs};
+  padding: ${Theme.spacing.sm} ${Theme.spacing.md};
+  min-height: 36px;
+  border-radius: ${Theme.radius.sm};
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   background: ${props => 
-    props.variant === 'danger' ? '#dc2626' : 
-    props.variant === 'success' ? '#059669' :
-    '#1e3a8a'
+    props.variant === 'danger' ? Theme.colors.status.error : 
+    props.variant === 'success' ? Theme.colors.status.success :
+    Theme.colors.brand.navy[700]
   };
   color: white;
 
   &:hover {
     background: ${props => 
-      props.variant === 'danger' ? '#b91c1c' : 
-      props.variant === 'success' ? '#047857' :
-      '#1e40af'
+      props.variant === 'danger' ? Theme.colors.status.errorDark : 
+      props.variant === 'success' ? Theme.colors.status.success :
+      Theme.colors.brand.navy[600]
     };
+    transform: translateY(-1px);
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
 const EventsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+  margin-top: ${Theme.spacing.lg};
+
+  ${media.sm} {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
 `;
 
 const EventCard = styled.div<{ $active: boolean; $isPast: boolean }>`
-  border: 1px solid ${props => 
-    props.$isPast ? '#e5e7eb' : 
-    props.$active ? '#10b981' : '#e5e7eb'
-  };
-  background: ${props => 
-    props.$isPast ? '#f9fafb' : 
-    props.$active ? '#f0fdf4' : '#f9fafb'
-  };
-  border-left: 4px solid ${props => 
-    props.$isPast ? '#9ca3af' : 
-    props.$active ? '#10b981' : '#e5e7eb'
-  };
-  border-radius: 0.75rem;
-  padding: 1.25rem;
+  border: 1px solid ${Theme.colors.border.base};
+  background: ${Theme.colors.surface.card};
+  border-left: 4px solid ${props => props.$isPast ? Theme.colors.border.soft : Theme.colors.brand.navy[700]};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
   position: relative;
-  opacity: ${props => props.$isPast ? 0.6 : (props.$active ? 1 : 0.7)};
+  opacity: ${props => props.$isPast ? 0.6 : 1};
   transition: all 0.2s;
+  box-shadow: ${Theme.shadow.soft};
 
   &:hover {
-    opacity: ${props => props.$isPast ? 0.7 : 1};
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    opacity: 1;
+    box-shadow: ${Theme.shadow.card};
+    border-color: ${Theme.colors.brand.navy[700]};
   }
 `;
 
 const EventCategoryBadge = styled.span`
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
+  padding: ${Theme.spacing.xs} ${Theme.spacing.lg};
+  border-radius: ${Theme.radius.pill};
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: ${Theme.spacing.md};
 `;
 
 const PastEventBadge = styled.span`
   display: inline-block;
-  background: #fecaca;
-  color: #991b1b;
-  font-size: 0.75rem;
+  background: ${Theme.colors.status.errorLight};
+  color: ${Theme.colors.status.errorDark};
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-  margin-left: 0.5rem;
+  padding: ${Theme.spacing.xs} ${Theme.spacing.sm};
+  border-radius: ${Theme.radius.sm};
+  margin-left: ${Theme.spacing.sm};
+`;
+
+const CancelledBadge = styled.span`
+  display: inline-block;
+  background: ${Theme.colors.status.errorLight};
+  color: ${Theme.colors.status.errorDark};
+  font-size: ${Theme.typography.small};
+  font-weight: 600;
+  padding: ${Theme.spacing.xs} ${Theme.spacing.sm};
+  border-radius: ${Theme.radius.sm};
+  margin-left: ${Theme.spacing.sm};
 `;
 
 const EventTitle = styled.h3`
-  font-size: 1.125rem;
+  font-size: ${Theme.typography.h3};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
   display: flex;
   align-items: center;
 `;
@@ -209,76 +223,81 @@ const EventTitle = styled.h3`
 const EventDetail = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.muted};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const EventDescription = styled.p`
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin: 0.75rem 0;
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.muted};
+  margin: ${Theme.spacing.md} 0;
   line-height: 1.5;
 `;
 
 const EventActions = styled.div`
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: ${Theme.spacing.sm};
+  margin-top: ${Theme.spacing.lg};
 `;
 
 const CategoriesGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-top: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+  margin-top: ${Theme.spacing.xl};
+
+  ${media.sm} {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
 `;
 
 const CategoryCard = styled.div`
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  background: white;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  background: ${Theme.colors.surface.card};
   transition: all 0.2s;
+  box-shadow: ${Theme.shadow.soft};
 
   &:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: ${Theme.shadow.card};
   }
 `;
 
 const CategoryPreview = styled.div`
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  border-radius: ${Theme.radius.md};
   text-align: center;
   font-weight: bold;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
+  font-size: ${Theme.typography.small};
+  margin-bottom: ${Theme.spacing.lg};
 `;
 
 const CategoryLabel = styled.h4`
-  font-size: 1rem;
+  font-size: ${Theme.typography.h3};
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.75rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.md};
 `;
 
 const CategoryColors = styled.div`
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: ${Theme.spacing.sm};
+  margin-bottom: ${Theme.spacing.lg};
 `;
 
 const ColorSwatch = styled.div`
   flex: 1;
   height: 40px;
-  border-radius: 0.375rem;
+  border-radius: ${Theme.radius.sm};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  border: 1px solid #d1d5db;
+  border: 1px solid ${Theme.colors.border.base};
   
   span {
     color: #fff;
@@ -288,94 +307,103 @@ const ColorSwatch = styled.div`
 
 const CategoryActions = styled.div`
   display: flex;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
   flex-wrap: wrap;
 `;
 
 const Modal = styled.div<{ $show: boolean }>`
   display: ${props => props.$show ? 'block' : 'none'};
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 1000;
   overflow-y: auto;
+  padding: ${Theme.spacing.lg};
 `;
 
 const ModalContent = styled.div`
-  background: white;
+  background: ${Theme.colors.surface.card};
   max-width: 42rem;
   margin: 2rem auto;
-  border-radius: 1rem;
-  padding: 2rem;
+  border-radius: ${Theme.radius.lg};
+  padding: ${Theme.spacing.xl};
   position: relative;
+  box-shadow: ${Theme.shadow.card};
+
+  ${media.sm} { padding: ${Theme.spacing.xxl}; }
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const ModalTitle = styled.h3`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: bold;
-  color: #1f2937;
+  color: ${Theme.colors.text.strong};
+
+  ${media.sm} { font-size: ${Theme.typography.h1}; }
 `;
 
 const CloseButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem;
-  color: #6b7280;
-  
+  padding: ${Theme.spacing.sm};
+  color: ${Theme.colors.text.muted};
+  min-height: 44px; min-width: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: ${Theme.radius.sm};
+  transition: all 0.2s;
+
   &:hover {
-    color: #1f2937;
+    color: ${Theme.colors.text.strong};
+    background: ${Theme.colors.surface.muted};
   }
 `;
 
 const Form = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: ${Theme.spacing.lg};
 `;
 
 const FormGroup = styled.div``;
 
 const Label = styled.label`
   display: block;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  min-height: 44px;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
@@ -384,32 +412,35 @@ const TextArea = styled.textarea`
   font-family: inherit;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 `;
 
 const Select = styled.select`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  min-height: 44px;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
-  background: white;
+  background: ${Theme.colors.surface.card};
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 `;
 
 const TwoColumnGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+
+  ${media.sm} { grid-template-columns: repeat(2, 1fr); }
 `;
 
 const Checkbox = styled.input`
@@ -421,38 +452,38 @@ const Checkbox = styled.input`
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #374151;
+  gap: ${Theme.spacing.sm};
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.strong};
   cursor: pointer;
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 1rem;
-  color: #6b7280;
+  color: ${Theme.colors.text.muted};
 `;
 
 const EmptyStateTitle = styled.h3`
-  font-size: 1.25rem;
+  font-size: ${Theme.typography.h2};
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const EmptyStateText = styled.p`
-  font-size: 0.875rem;
-  margin-bottom: 1.5rem;
+  font-size: ${Theme.typography.body};
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const EventStats = styled.div`
   display: flex;
-  gap: 1rem;
-  font-size: 0.875rem;
+  gap: ${Theme.spacing.lg};
+  font-size: ${Theme.typography.body};
 `;
 
 const StatItem = styled.span<{ $muted?: boolean }>`
-  color: ${props => props.$muted ? '#9ca3af' : '#1f2937'};
+  color: ${props => props.$muted ? Theme.colors.text.subtle : Theme.colors.text.strong};
   font-weight: 600;
 `;
 
@@ -920,7 +951,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
                     <EventTitle>
                       {event.title}
                       {pastEvent && <PastEventBadge>PAST EVENT</PastEventBadge>}
-                      {!event.is_active && !pastEvent && <PastEventBadge style={{ background: '#fecaca', color: '#991b1b' }}>CANCELLED</PastEventBadge>}
+                      {!event.is_active && !pastEvent && <CancelledBadge>CANCELLED</CancelledBadge>}
                     </EventTitle>
                     
                     <EventDetail>

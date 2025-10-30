@@ -3,40 +3,48 @@ import styled, { keyframes, css } from 'styled-components';
 import { Save, RefreshCw, Globe } from 'lucide-react';
 import { PrayerTimesTabProps } from '../types';
 import TimeInput from './TimeInput';
+import { Theme, media } from '../constants/theme';
+import Card from './ui/Card';
 
-const Card = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-`;
+// Using shared Card component from ./ui/Card for consistent styling across tabs
 
 const CardTitle = styled.h2`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.lg};
+
+  ${media.sm} {
+    font-size: ${Theme.typography.h1};
+    margin-bottom: ${Theme.spacing.xl};
+  }
 `;
 
 const InfoBox = styled.div`
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  color: #1e40af;
+  margin-bottom: ${Theme.spacing.lg};
+  padding: ${Theme.spacing.lg};
+  background: ${Theme.colors.accent.blueSoft};
+  border: 1px solid ${Theme.colors.accent.blue};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.brand.navy[700]};
+  box-shadow: ${Theme.shadow.soft};
+
+  ${media.sm} {
+    font-size: ${Theme.typography.body};
+  }
 `;
 
 const AutoFetchBanner = styled.div`
-  margin-bottom: 1.5rem;
-  padding: 1rem;
+  margin-bottom: ${Theme.spacing.lg};
+  padding: ${Theme.spacing.lg};
   background: #f0fdf4;
-  border: 1px solid #86efac;
-  border-radius: 0.5rem;
+  border: 1px solid ${Theme.colors.accent.green};
+  border-radius: ${Theme.radius.md};
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
+  box-shadow: ${Theme.shadow.soft};
 `;
 
 const BannerIcon = styled.div`
@@ -48,41 +56,54 @@ const BannerContent = styled.div`
 `;
 
 const BannerTitle = styled.div`
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   font-weight: 600;
   color: #15803d;
-  margin-bottom: 0.25rem;
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const BannerText = styled.div`
-  font-size: 0.75rem;
+  font-size: ${Theme.typography.small};
   color: #166534;
 `;
 
 const PrayerGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+  margin-top: ${Theme.spacing.lg};
+
+  ${media.sm} {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
 `;
 
 const PrayerCard = styled.div`
-  border: 1px solid #e5e7eb;
-  background: white;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border: 1px solid ${Theme.colors.border.base};
+  background: ${Theme.colors.surface.card};
+  border-radius: ${Theme.radius.md};
+  border-left: 4px solid ${Theme.colors.brand.navy[800]};
+  padding: ${Theme.spacing.lg};
+  transition: all 0.2s ease;
+  box-shadow: ${Theme.shadow.soft};
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: ${Theme.shadow.card};
+    border-color: ${Theme.colors.brand.navy[700]};
+  }
 `;
 
 const PrayerName = styled.h3`
-  font-size: 1.125rem;
+  font-size: ${Theme.typography.h3};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.lg};
   text-transform: capitalize;
 `;
 
 const TimeInputGroup = styled.div`
-  margin-bottom: 0.75rem;
+  margin-bottom: ${Theme.spacing.md};
 
   &:last-child {
     margin-bottom: 0;
@@ -91,124 +112,141 @@ const TimeInputGroup = styled.div`
 
 const TimeLabel = styled.label`
   display: block;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   font-weight: 500;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
+  color: ${Theme.colors.text.muted};
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const ReadOnlyTimeInput = styled.input`
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 
   &:disabled {
-    background: #f9fafb;
-    color: #6b7280;
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.muted};
     cursor: not-allowed;
-    border-color: #e5e7eb;
+    border-color: ${Theme.colors.border.soft};
   }
 `;
 
 const IqamaTypeSelector = styled.div`
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: ${Theme.spacing.sm};
+  margin-bottom: ${Theme.spacing.md};
 `;
 
 const TypeButton = styled.button<{ $active: boolean }>`
   flex: 1;
-  padding: 0.5rem;
-  border: 1px solid ${props => props.$active ? '#1e3a8a' : '#d1d5db'};
-  background: ${props => props.$active ? '#1e3a8a' : 'white'};
-  color: ${props => props.$active ? 'white' : '#6b7280'};
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${props => props.$active ? Theme.colors.brand.navy[700] : Theme.colors.border.base};
+  background: ${props => props.$active ? Theme.colors.brand.navy[700] : Theme.colors.surface.card};
+  color: ${props => props.$active ? 'white' : Theme.colors.text.muted};
+  border-radius: ${Theme.radius.sm};
+  font-size: ${Theme.typography.small};
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 
+  ${media.sm} {
+    font-size: ${Theme.typography.body};
+  }
+
   &:hover {
-    border-color: #1e3a8a;
-    color: ${props => props.$active ? 'white' : '#1e3a8a'};
+    border-color: ${Theme.colors.brand.navy[700]};
+    color: ${props => props.$active ? 'white' : Theme.colors.brand.navy[700]};
   }
 `;
 
 const OffsetInputContainer = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const OffsetInput = styled.input`
   width: 4rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
   text-align: center;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 `;
 
 const OffsetLabel = styled.span`
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.muted};
 `;
 
 const CalculatedTime = styled.div`
-  margin-top: 0.5rem;
-  padding: 0.5rem;
+  margin-top: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.sm};
   background: #f0fdf4;
-  border: 1px solid #86efac;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
+  border: 1px solid ${Theme.colors.accent.green};
+  border-radius: ${Theme.radius.sm};
+  font-size: ${Theme.typography.small};
   color: #15803d;
   text-align: center;
 `;
 
 const ButtonContainer = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  flex-direction: column;
+  gap: ${Theme.spacing.md};
+  margin-top: ${Theme.spacing.xl};
 
-  @media (max-width: 768px) {
-    flex-direction: column; /* Stack buttons vertically */
-    align-items: center; /* Center buttons horizontally within the container */
+  ${media.sm} {
+    flex-direction: row;
   }
 `;
 
 const RefreshButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #3b82f6;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  background: ${Theme.colors.surface.card};
+  color: ${Theme.colors.brand.navy[700]};
+  border: 2px solid ${Theme.colors.brand.navy[700]};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
-  border: none;
+  font-size: ${Theme.typography.body};
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+
+  ${media.sm} {
+    flex: 1;
+  }
 
   &:hover {
-    background: #2563eb;
+    background: ${Theme.colors.brand.navy[700]};
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:active {
@@ -216,12 +254,15 @@ const RefreshButton = styled.button`
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.subtle};
+    border-color: ${Theme.colors.border.base};
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
-// Pulse animation (match MosqueSettingsTab)
+// Pulse animation
 const pulse = keyframes`
   0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
   70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
@@ -231,19 +272,27 @@ const pulse = keyframes`
 const SaveButton = styled.button<{ $dirty?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: ${props => props.$dirty ? '#f59e0b' : '#1e3a8a'};
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  background: ${props => props.$dirty ? Theme.colors.status.warning : Theme.colors.brand.navy[700]};
   color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
+  font-size: ${Theme.typography.body};
   border: none;
   cursor: pointer;
-  transition: background 0.2s;
-  
+  transition: all 0.2s;
+
+  ${media.sm} {
+    flex: 1;
+  }
 
   &:hover {
-    background: ${props => props.$dirty ? '#d97706' : '#1e40af'};
+    background: ${props => props.$dirty ? Theme.colors.brand.gold[600] : Theme.colors.brand.navy[600]};
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:active {
@@ -251,22 +300,27 @@ const SaveButton = styled.button<{ $dirty?: boolean }>`
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
+    transform: none;
   }
 
   ${props => props.$dirty && css`animation: ${pulse} 2s infinite;`}
 `;
 
 const APIStatusBox = styled.div<{ $success: boolean }>`
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: ${props => props.$success ? '#f0fdf4' : '#fef2f2'};
-  border: 1px solid ${props => props.$success ? '#86efac' : '#fca5a5'};
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  color: ${props => props.$success ? '#15803d' : '#991b1b'};
+  margin-top: ${Theme.spacing.lg};
+  padding: ${Theme.spacing.md};
+  background: ${props => props.$success ? Theme.colors.status.successLight : Theme.colors.status.errorLight};
+  border: 1px solid ${props => props.$success ? Theme.colors.status.success : Theme.colors.status.error};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
+  color: ${props => props.$success ? Theme.colors.status.successDark : Theme.colors.status.errorDark};
   text-align: center;
+
+  ${media.sm} {
+    padding: ${Theme.spacing.lg};
+  }
 `;
 
 export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, mosqueSettings }: PrayerTimesTabProps): React.JSX.Element {

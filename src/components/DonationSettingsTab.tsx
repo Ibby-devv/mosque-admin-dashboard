@@ -6,105 +6,107 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Save, Plus, Trash2, Edit2, X } from 'lucide-react';
-import { DonationSettings, DonationType, RecurringFrequencyOption } from '../types';
+import { DonationSettings, DonationType } from '../types';
+import Card from './ui/Card';
+import { Theme, media } from '../constants/theme';
 
 // ============================================================================
 // STYLED COMPONENTS
 // ============================================================================
 
-const Container = styled.div`
-  padding: 2rem;
-`;
+const Container = Card;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const Title = styled.h2`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: 700;
-  color: #1e3a8a;
+  color: ${Theme.colors.text.strong};
   margin: 0;
+
+  ${media.sm} { font-size: ${Theme.typography.h1}; }
 `;
 
 const SaveButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: #1e3a8a;
+  gap: ${Theme.spacing.sm};
+  background: ${Theme.colors.brand.navy[700]};
   color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
   border: none;
   cursor: pointer;
+  transition: all 0.2s;
 
-  &:hover {
-    background: #1e40af;
-  }
-
-  &:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-  }
+  &:hover { background: ${Theme.colors.brand.navy[600]}; box-shadow: ${Theme.shadow.soft}; transform: translateY(-1px); }
+  &:disabled { background: ${Theme.colors.border.medium}; cursor: not-allowed; transform: none; }
 `;
 
 const Section = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  background: ${Theme.colors.surface.card};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  box-shadow: ${Theme.shadow.soft};
+  padding: ${Theme.spacing.lg};
+  margin-bottom: ${Theme.spacing.xl};
+
+  &:hover { box-shadow: ${Theme.shadow.card}; }
 `;
 
 const SectionTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e3a8a;
-  margin: 0 0 1rem 0;
+  font-size: ${Theme.typography.h3};
+  font-weight: 700;
+  color: ${Theme.colors.text.strong};
+  margin: 0 0 ${Theme.spacing.md} 0;
 `;
 
 const SectionDescription = styled.p`
-  color: #6b7280;
-  margin: 0 0 1.5rem 0;
-  font-size: 0.875rem;
+  color: ${Theme.colors.text.muted};
+  margin: 0 0 ${Theme.spacing.lg} 0;
+  font-size: ${Theme.typography.small};
 `;
 
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+  ${media.sm} {
+    grid-template-columns: 1fr 1fr;
   }
 `;
 
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const Label = styled.label`
   font-weight: 600;
-  color: #374151;
-  font-size: 0.875rem;
+  color: ${Theme.colors.text.strong};
+  font-size: ${Theme.typography.small};
 `;
 
 const Input = styled.input`
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
 
   &:focus {
     outline: none;
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 `;
 
@@ -117,92 +119,91 @@ const Checkbox = styled.input`
 const CheckboxLabel = styled.label`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.sm};
   cursor: pointer;
-  font-size: 0.875rem;
-  color: #374151;
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.strong};
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const ListItem = styled.div<{ disabled?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
-  background: ${props => props.disabled ? '#f3f4f6' : '#f9fafb'};
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  padding: ${Theme.spacing.lg};
+  background: ${props => props.disabled ? Theme.colors.surface.muted : Theme.colors.surface.base};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
   opacity: ${props => props.disabled ? 0.6 : 1};
 `;
 
 const ListItemContent = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: ${Theme.spacing.lg};
   flex: 1;
 `;
 
 const ListItemText = styled.span`
-  font-weight: 500;
-  color: #374151;
+  font-weight: 600;
+  color: ${Theme.colors.text.strong};
 `;
 
 const ListItemActions = styled.div`
   display: flex;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const IconButton = styled.button`
-  padding: 0.5rem;
+  padding: ${Theme.spacing.sm};
+  min-height: 44px; min-width: 44px;
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #6b7280;
-  border-radius: 0.25rem;
+  color: ${Theme.colors.text.muted};
+  border-radius: ${Theme.radius.sm};
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
 
-  &:hover {
-    background: #e5e7eb;
-    color: #1e3a8a;
-  }
+  &:hover { background: ${Theme.colors.surface.muted}; color: ${Theme.colors.brand.navy[700]}; }
 `;
 
 const AddButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #f3f4f6;
-  border: 1px dashed #d1d5db;
-  border-radius: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  background: ${Theme.colors.surface.muted};
+  border: 1px dashed ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
   cursor: pointer;
-  color: #1e3a8a;
+  color: ${Theme.colors.brand.navy[700]};
   font-weight: 600;
   width: 100%;
+  transition: all 0.2s;
 
-  &:hover {
-    background: #e5e7eb;
-  }
+  &:hover { background: ${Theme.colors.surface.base}; box-shadow: ${Theme.shadow.soft}; }
 `;
 
 const AmountList = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const AmountChip = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #dbeafe;
-  color: #1e3a8a;
-  border-radius: 9999px;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.sm} ${Theme.spacing.lg};
+  background: ${Theme.colors.accent.blueSoft};
+  color: ${Theme.colors.brand.navy[700]};
+  border-radius: ${Theme.radius.pill};
   font-weight: 600;
 `;
 
@@ -211,13 +212,11 @@ const RemoveChipButton = styled.button`
   background: transparent;
   border: none;
   cursor: pointer;
-  color: #1e3a8a;
+  color: ${Theme.colors.brand.navy[700]};
   display: flex;
   align-items: center;
 
-  &:hover {
-    color: #dc2626;
-  }
+  &:hover { color: ${Theme.colors.status.error}; }
 `;
 
 const Modal = styled.div`
@@ -234,46 +233,51 @@ const Modal = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  padding: 2rem;
+  background: ${Theme.colors.surface.card};
+  border-radius: ${Theme.radius.lg};
+  padding: ${Theme.spacing.xl};
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: ${Theme.shadow.card};
+
+  ${media.sm} { padding: ${Theme.spacing.xxl}; }
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const ModalTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e3a8a;
+  font-size: ${Theme.typography.h2};
+  font-weight: 700;
+  color: ${Theme.colors.text.strong};
   margin: 0;
 `;
 
 const ModalActions = styled.div`
   display: flex;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.sm};
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: ${Theme.spacing.lg};
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 44px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
   border: none;
   cursor: pointer;
-  background: ${props => props.variant === 'primary' ? '#1e3a8a' : '#f3f4f6'};
-  color: ${props => props.variant === 'primary' ? 'white' : '#374151'};
+  background: ${props => props.variant === 'primary' ? Theme.colors.brand.navy[700] : Theme.colors.surface.muted};
+  color: ${props => props.variant === 'primary' ? 'white' : Theme.colors.text.strong};
+  transition: all 0.2s;
 
-  &:hover {
-    background: ${props => props.variant === 'primary' ? '#1e40af' : '#e5e7eb'};
+  &:hover { 
+    background: ${props => props.variant === 'primary' ? Theme.colors.brand.navy[600] : Theme.colors.surface.base};
+    box-shadow: ${Theme.shadow.soft};
   }
 `;
 
@@ -476,9 +480,9 @@ export default function DonationSettingsTab({
             value={newAmount}
             onChange={(e) => setNewAmount(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleAddAmount()}
-            style={{ flex: 1 }}
+            style={{ flex: 2 }}
           />
-          <Button variant="primary" onClick={handleAddAmount}>
+          <Button variant="primary" onClick={handleAddAmount} style={{ flex: 1 }}>
             Add
           </Button>
         </div>

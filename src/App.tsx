@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   getFirestore,
   doc,
@@ -19,13 +19,17 @@ import MosqueSettingsTab from "./components/MosqueSettingsTab";
 import EventsTab from "./components/EventsTab";
 import DonationsTab from './components/DonationsTab';
 import NotificationsTab from './components/NotificationsTab';
+import AdminManagementTab from './components/AdminManagementTab';
+import Loading from './components/ui/Loading';
+import ToastContainer from './components/ui/ToastContainer';
 // Import custom hook
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
+import { useToast } from "./hooks/useToast";
 
 // Import types
 import {
   PrayerTimes,
-  JumuahTimes,
+  JumuahData,
   MosqueSettings,
   DonationSettings,
 } from "./types";
@@ -35,11 +39,13 @@ const db = getFirestore();
 export default function AdminDashboard(): React.JSX.Element {
   const {
     isAuthenticated,
+    isAdmin,
     loading: authLoading,
     error: authError,
     login,
     logout,
   } = useFirebaseAuth();
+  const { toasts, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("prayer");
   const [saveStatus, setSaveStatus] = useState<"success" | "error" | "">("");
   const [saving, setSaving] = useState<boolean>(false);
@@ -73,13 +79,8 @@ export default function AdminDashboard(): React.JSX.Element {
     last_updated: new Date().toISOString().split("T")[0],
   });
 
-  const [jumuahTimes, setJumuahTimes] = useState<JumuahTimes>({
-    first_khutbah: "12:30 PM",
-    first_prayer: "1:00 PM",
-    second_khutbah: "1:45 PM",
-    second_prayer: "2:15 PM",
-    last_updated: new Date().toISOString().split("T")[0],
-  });
+  // New Jumuah data structure (times array). Start as null until loaded or edited.
+  const [jumuahTimes, setJumuahTimes] = useState<JumuahData | null>(null);
 
   const [mosqueSettings, setMosqueSettings] = useState<MosqueSettings>({
     name: "Al Madina Masjid Yagoona",
@@ -100,6 +101,57 @@ export default function AdminDashboard(): React.JSX.Element {
     useState<DonationSettings | null>(null);
 
   // Load data from Firebase when authenticated (with delay for auth to settle)
+  const loadData = useCallback(async (): Promise<void> => {
+    // Double-check authentication
+    if (!isAuthenticated) {
+      console.log("⏳ Skipping loadData - not authenticated yet");
+      return;
+    }
+
+    try {
+      console.log("📖 Loading data from Firebase...");
+
+      console.log("  → Loading prayer times...");
+      const prayerDoc = await getDoc(doc(db, "prayerTimes", "current"));
+      console.log("  ✅ Prayer times fetched:", prayerDoc.exists());
+
+      if (prayerDoc.exists()) {
+        const data = prayerDoc.data() as PrayerTimes;
+        const prayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+        prayers.forEach((prayer) => {
+          if (!(data as any)[`${prayer}_iqama_type`]) {
+            (data as any)[`${prayer}_iqama_type`] = "fixed";
+          }
+          if (!(data as any)[`${prayer}_iqama_offset`]) {
+            (data as any)[`${prayer}_iqama_offset`] =
+              prayer === "maghrib" ? 5 : 15;
+          }
+        });
+        setPrayerTimes(data);
+      }
+
+      console.log("  → Loading jumuah times (new structure)...");
+      const jumuahDoc = await getDoc(doc(db, "jumuahTimes", "current"));
+      console.log("  ✅ Jumuah times fetched:", jumuahDoc.exists());
+
+      if (jumuahDoc.exists()) {
+        setJumuahTimes(jumuahDoc.data() as JumuahData);
+      }
+
+      console.log("  → Loading mosque settings...");
+      const settingsDoc = await getDoc(doc(db, "mosqueSettings", "info"));
+      console.log("  ✅ Mosque settings fetched:", settingsDoc.exists());
+
+      if (settingsDoc.exists()) {
+        setMosqueSettings(settingsDoc.data() as MosqueSettings);
+      }
+
+      console.log("✅ Data loaded successfully");
+    } catch (error) {
+      console.error("❌ Error loading data (may be temporary):", error);
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -109,7 +161,7 @@ export default function AdminDashboard(): React.JSX.Element {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadData]);
 
   // Load donation settings with real-time updates
   useEffect(() => {
@@ -144,56 +196,15 @@ export default function AdminDashboard(): React.JSX.Element {
     return () => clearTimeout(timer);
   }, [isAuthenticated]);
 
-  const loadData = async (): Promise<void> => {
-    // Double-check authentication
-    if (!isAuthenticated) {
-      console.log("⏳ Skipping loadData - not authenticated yet");
-      return;
+  // Quick splash after auth for a smooth branded entry
+  const [showSplash, setShowSplash] = useState<boolean>(false);
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      setShowSplash(true);
+      const t = setTimeout(() => setShowSplash(false), 700);
+      return () => clearTimeout(t);
     }
-
-    try {
-      console.log("📖 Loading data from Firebase...");
-
-      console.log("  → Loading prayer times...");
-      const prayerDoc = await getDoc(doc(db, "prayerTimes", "current"));
-      console.log("  ✅ Prayer times fetched:", prayerDoc.exists());
-
-      if (prayerDoc.exists()) {
-        const data = prayerDoc.data() as PrayerTimes;
-        const prayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
-        prayers.forEach((prayer) => {
-          if (!(data as any)[`${prayer}_iqama_type`]) {
-            (data as any)[`${prayer}_iqama_type`] = "fixed";
-          }
-          if (!(data as any)[`${prayer}_iqama_offset`]) {
-            (data as any)[`${prayer}_iqama_offset`] =
-              prayer === "maghrib" ? 5 : 15;
-          }
-        });
-        setPrayerTimes(data);
-      }
-
-      console.log("  → Loading jumuah times...");
-      const jumuahDoc = await getDoc(doc(db, "jumuahTimes", "current"));
-      console.log("  ✅ Jumuah times fetched:", jumuahDoc.exists());
-
-      if (jumuahDoc.exists()) {
-        setJumuahTimes(jumuahDoc.data() as JumuahTimes);
-      }
-
-      console.log("  → Loading mosque settings...");
-      const settingsDoc = await getDoc(doc(db, "mosqueSettings", "info"));
-      console.log("  ✅ Mosque settings fetched:", settingsDoc.exists());
-
-      if (settingsDoc.exists()) {
-        setMosqueSettings(settingsDoc.data() as MosqueSettings);
-      }
-
-      console.log("✅ Data loaded successfully");
-    } catch (error) {
-      console.error("❌ Error loading data (may be temporary):", error);
-    }
-  };
+  }, [authLoading, isAuthenticated]);
 
   const handleLogin = async (
     email: string,
@@ -205,6 +216,53 @@ export default function AdminDashboard(): React.JSX.Element {
   const handleLogout = async (): Promise<void> => {
     await logout();
   };
+
+  // Block access if authenticated but not admin
+  if (!authLoading && isAuthenticated && !isAdmin) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        padding: '2rem',
+        textAlign: 'center',
+        background: '#f5f5f5'
+      }}>
+        <div style={{ 
+          background: 'white', 
+          padding: '3rem', 
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          maxWidth: '500px'
+        }}>
+          <h2 style={{ color: '#dc3545', marginBottom: '1rem' }}>⛔ Unauthorized Access</h2>
+          <p style={{ marginBottom: '1.5rem', color: '#666' }}>
+            This dashboard is restricted to administrators only.
+          </p>
+          <p style={{ fontSize: '0.9rem', color: '#999', marginBottom: '2rem' }}>
+            If you believe this is an error, please contact your administrator.
+          </p>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              padding: '0.75rem 2rem',
+              background: '#0f172a',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const showSaveStatus = (success: boolean): void => {
     setSaveStatus(success ? "success" : "error");
@@ -233,7 +291,14 @@ export default function AdminDashboard(): React.JSX.Element {
   const saveJumuahTimes = async (): Promise<void> => {
     setSaving(true);
     try {
-      const updatedJumuah: JumuahTimes = {
+      if (!jumuahTimes) {
+        // Nothing to save yet (user hasn't made changes and no data loaded)
+        console.warn("ℹ️ No Jumuah data to save.");
+        setSaving(false);
+        return;
+      }
+
+      const updatedJumuah: JumuahData = {
         ...jumuahTimes,
         last_updated: new Date().toISOString().split("T")[0],
       };
@@ -288,31 +353,25 @@ export default function AdminDashboard(): React.JSX.Element {
   };
 
   if (authLoading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "100vh",
-          fontSize: "18px",
-          color: "#6b7280",
-        }}
-      >
-        Loading...
-      </div>
-    );
+    return <Loading fullPage useLogo text="Loading dashboard..." />;
   }
 
   if (!isAuthenticated) {
     return <LoginForm onLogin={handleLogin} error={authError} />;
   }
 
+  // Show a short splash right after authentication before rendering main UI
+  if (showSplash) {
+    return <Loading fullPage useLogo text="Preparing dashboard..." />;
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
-      <Header onLogout={handleLogout} />
+  <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
 
       <SaveNotification status={saveStatus} />
+      
+      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
 
       <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -357,6 +416,10 @@ export default function AdminDashboard(): React.JSX.Element {
             saving={saving}
             onSaveStatusChange={showSaveStatus}
           />
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminManagementTab />
         )}
 
         {activeTab === "settings" && (

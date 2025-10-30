@@ -5,10 +5,12 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Send, Bell, CheckCircle, AlertCircle, Clock, Users, Trash2, AlertTriangle } from 'lucide-react';
+import { Send, Bell, CheckCircle, AlertCircle, Clock, Users, Trash2 } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, orderBy, limit, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import Card from './ui/Card';
+import { Theme, media } from '../constants/theme';
 
 // ============================================================================
 // TYPES
@@ -49,220 +51,221 @@ interface SendNotificationResponse {
 // STYLED COMPONENTS
 // ============================================================================
 
-const Container = styled.div`
-  padding: 0;
-`;
-
-const Card = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-`;
+const Container = Card;
 
 const CardTitle = styled.h2`
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
+  font-size: ${Theme.typography.h2};
+  font-weight: 700;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
+
+  ${media.sm} { font-size: ${Theme.typography.h1}; }
 `;
 
 const CardDescription = styled.p`
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin: 0 0 1.5rem 0;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
+  margin: 0 0 ${Theme.spacing.xl} 0;
 `;
 
 const Form = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: ${Theme.spacing.lg};
 `;
 
 const FormGroup = styled.div``;
 
 const Label = styled.label`
   display: block;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const CharacterCount = styled.span<{ $isNearLimit: boolean; $isOverLimit: boolean }>`
-  font-size: 0.75rem;
+  font-size: ${Theme.typography.small};
   color: ${props => 
-    props.$isOverLimit ? '#dc2626' : 
-    props.$isNearLimit ? '#f59e0b' : 
-    '#6b7280'
+    props.$isOverLimit ? Theme.colors.status.error : 
+    props.$isNearLimit ? Theme.colors.status.warning : 
+    Theme.colors.text.muted
   };
   font-weight: ${props => (props.$isOverLimit || props.$isNearLimit) ? 600 : 400};
 `;
 
 const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid ${props => props.$hasError ? '#dc2626' : '#d1d5db'};
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${props => props.$hasError ? Theme.colors.status.error : Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
 
   &:focus {
-    border-color: ${props => props.$hasError ? '#dc2626' : '#1e3a8a'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(220, 38, 38, 0.1)' : 'rgba(30, 58, 138, 0.1)'};
+    border-color: ${props => props.$hasError ? Theme.colors.status.error : Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? Theme.colors.status.errorLight : Theme.colors.accent.blueSoft};
   }
 
   &::placeholder {
-    color: #9ca3af;
+    color: ${Theme.colors.text.subtle};
   }
 `;
 
 const TextArea = styled.textarea<{ $hasError?: boolean }>`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid ${props => props.$hasError ? '#dc2626' : '#d1d5db'};
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md};
+  min-height: 120px;
+  border: 1px solid ${props => props.$hasError ? Theme.colors.status.error : Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
-  min-height: 120px;
   resize: vertical;
   font-family: inherit;
 
   &:focus {
-    border-color: ${props => props.$hasError ? '#dc2626' : '#1e3a8a'};
-    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(220, 38, 38, 0.1)' : 'rgba(30, 58, 138, 0.1)'};
+    border-color: ${props => props.$hasError ? Theme.colors.status.error : Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? Theme.colors.status.errorLight : Theme.colors.accent.blueSoft};
   }
 
   &::placeholder {
-    color: #9ca3af;
+    color: ${Theme.colors.text.subtle};
   }
 `;
 
 const ErrorMessage = styled.div`
-  font-size: 0.75rem;
-  color: #dc2626;
-  margin-top: 0.25rem;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.status.error};
+  margin-top: ${Theme.spacing.xs};
 `;
 
 const HelpText = styled.div`
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 0.25rem;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
+  margin-top: ${Theme.spacing.xs};
 `;
 
 const PreviewCard = styled.div`
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-top: 1rem;
+  background: ${Theme.colors.surface.soft};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  margin-top: ${Theme.spacing.lg};
 `;
 
 const PreviewTitle = styled.div`
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.75rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.md};
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const NotificationPreview = styled.div`
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: ${Theme.colors.surface.card};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  box-shadow: ${Theme.shadow.soft};
 `;
 
 const PreviewNotificationTitle = styled.div`
-  font-size: 0.9375rem;
+  font-size: ${Theme.typography.body};
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const PreviewNotificationBody = styled.div`
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
   line-height: 1.5;
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: ${Theme.spacing.lg};
+  margin-top: ${Theme.spacing.xl};
 `;
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   flex: 1;
-  font-size: 1rem;
+  font-size: ${Theme.typography.body};
 
-  background: ${props => props.$variant === 'secondary' ? '#f3f4f6' : '#1e3a8a'};
-  color: ${props => props.$variant === 'secondary' ? '#374151' : 'white'};
+  background: ${props => props.$variant === 'secondary' ? Theme.colors.surface.muted : Theme.colors.brand.navy[700]};
+  color: ${props => props.$variant === 'secondary' ? Theme.colors.text.strong : 'white'};
 
   &:hover {
-    background: ${props => props.$variant === 'secondary' ? '#e5e7eb' : '#1e40af'};
+    background: ${props => props.$variant === 'secondary' ? Theme.colors.surface.base : Theme.colors.brand.navy[600]};
+    box-shadow: ${Theme.shadow.soft};
+    transform: translateY(-1px);
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     color: white;
     cursor: not-allowed;
     opacity: 0.6;
+    transform: none;
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
 const WarningBox = styled.div`
-  background: #fef3c7;
-  border: 1px solid #fbbf24;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-top: 1rem;
+  background: ${Theme.colors.accent.amberSoft};
+  border: 1px solid ${Theme.colors.accent.amber};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  margin-top: ${Theme.spacing.lg};
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
 `;
 
 const WarningIcon = styled.div`
-  color: #f59e0b;
+  color: ${Theme.colors.accent.amber};
   flex-shrink: 0;
 `;
 
 const WarningText = styled.div`
-  font-size: 0.875rem;
-  color: #92400e;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.strong};
 `;
 
 const SuccessBox = styled.div`
-  background: #d1fae5;
-  border: 1px solid #10b981;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  background: ${Theme.colors.status.successLight};
+  border: 1px solid ${Theme.colors.status.success};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  margin-bottom: ${Theme.spacing.xl};
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
 `;
 
 const SuccessIcon = styled.div`
-  color: #10b981;
+  color: ${Theme.colors.status.success};
   flex-shrink: 0;
 `;
 
@@ -271,30 +274,30 @@ const SuccessContent = styled.div`
 `;
 
 const SuccessTitle = styled.div`
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  color: #065f46;
-  margin-bottom: 0.25rem;
+  color: ${Theme.colors.status.successDark};
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const SuccessText = styled.div`
-  font-size: 0.75rem;
-  color: #047857;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.status.success};
 `;
 
 const ErrorBox = styled.div`
-  background: #fee2e2;
-  border: 1px solid #dc2626;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  background: ${Theme.colors.status.errorLight};
+  border: 1px solid ${Theme.colors.status.error};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  margin-bottom: ${Theme.spacing.xl};
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
 `;
 
 const ErrorIcon = styled.div`
-  color: #dc2626;
+  color: ${Theme.colors.status.error};
   flex-shrink: 0;
 `;
 
@@ -303,54 +306,56 @@ const ErrorContent = styled.div`
 `;
 
 const ErrorTitle = styled.div`
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  color: #991b1b;
-  margin-bottom: 0.25rem;
+  color: ${Theme.colors.status.errorDark};
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const ErrorText = styled.div`
-  font-size: 0.75rem;
-  color: #b91c1c;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.status.error};
 `;
 
 const RecentNotificationsHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: ${Theme.spacing.lg};
 `;
 
 const RecentNotificationsTitle = styled.h3`
-  font-size: 1.125rem;
+  font-size: ${Theme.typography.h3};
   font-weight: 600;
-  color: #1f2937;
+  color: ${Theme.colors.text.strong};
   margin: 0;
 `;
 
 const DeleteAllButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.sm} ${Theme.spacing.lg};
+  min-height: 44px;
+  background: ${Theme.colors.status.errorLight};
+  color: ${Theme.colors.status.errorDark};
+  border: 1px solid ${Theme.colors.status.error};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.small};
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: #fecaca;
-    border-color: #f87171;
+    background: ${Theme.colors.status.error};
+    color: white;
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:disabled {
-    background: #f3f4f6;
-    color: #9ca3af;
-    border-color: #e5e7eb;
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.subtle};
+    border-color: ${Theme.colors.border.base};
     cursor: not-allowed;
   }
 `;
@@ -358,15 +363,15 @@ const DeleteAllButton = styled.button`
 const NotificationsList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
 `;
 
 const NotificationLogItem = styled.div`
-  border: 1px solid #e5e7eb;
-  border-left: 4px solid #3b82f6;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  background: white;
+  border: 1px solid ${Theme.colors.border.base};
+  border-left: 4px solid ${Theme.colors.accent.blue};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  background: ${Theme.colors.surface.card};
   position: relative;
 `;
 
@@ -374,96 +379,97 @@ const LogHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.5rem;
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const LogTitle = styled.div`
-  font-size: 0.9375rem;
+  font-size: ${Theme.typography.body};
   font-weight: 600;
-  color: #1f2937;
+  color: ${Theme.colors.text.strong};
   flex: 1;
-  padding-right: 1rem;
+  padding-right: ${Theme.spacing.lg};
 `;
 
 const LogActions = styled.div`
   display: flex;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const LogTimestamp = styled.div`
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: ${Theme.spacing.xs};
 `;
 
 const DeleteButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
+  gap: ${Theme.spacing.xs};
+  padding: ${Theme.spacing.xs} ${Theme.spacing.sm};
+  min-height: 32px;
+  background: ${Theme.colors.status.errorLight};
+  color: ${Theme.colors.status.errorDark};
+  border: 1px solid ${Theme.colors.status.error};
+  border-radius: ${Theme.radius.sm};
+  font-size: ${Theme.typography.small};
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: #fecaca;
-    border-color: #f87171;
+    background: ${Theme.colors.status.error};
+    color: white;
   }
 
   &:disabled {
-    background: #f3f4f6;
-    color: #9ca3af;
-    border-color: #e5e7eb;
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.subtle};
+    border-color: ${Theme.colors.border.base};
     cursor: not-allowed;
   }
 `;
 
 const LogBody = styled.div`
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.75rem;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
+  margin-bottom: ${Theme.spacing.md};
 `;
 
 const LogStats = styled.div`
   display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
+  gap: ${Theme.spacing.lg};
+  font-size: ${Theme.typography.small};
 `;
 
 const LogStat = styled.div<{ $success?: boolean }>`
-  color: ${props => props.$success ? '#059669' : '#6b7280'};
+  color: ${props => props.$success ? Theme.colors.status.success : Theme.colors.text.muted};
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: ${Theme.spacing.xs};
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 3rem 1rem;
-  color: #6b7280;
+  padding: ${Theme.spacing.xxl} ${Theme.spacing.lg};
+  color: ${Theme.colors.text.muted};
 `;
 
 const EmptyStateIcon = styled.div`
-  margin-bottom: 1rem;
-  color: #d1d5db;
+  margin-bottom: ${Theme.spacing.lg};
+  color: ${Theme.colors.border.medium};
 `;
 
 const EmptyStateText = styled.div`
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
 `;
 
 const LoadingState = styled.div`
   text-align: center;
-  padding: 2rem;
-  color: #6b7280;
+  padding: ${Theme.spacing.xxl};
+  color: ${Theme.colors.text.muted};
 `;
 
 // ============================================================================

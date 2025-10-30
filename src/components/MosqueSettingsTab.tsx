@@ -3,35 +3,53 @@ import styled, { keyframes, css } from 'styled-components';
 import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { MosqueSettingsTabProps } from '../types';
+import { Theme, media } from '../constants/theme';
 
 const Card = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  background: ${Theme.colors.surface.card};
+  border: 1px solid ${Theme.colors.border.soft};
+  border-radius: ${Theme.radius.lg};
+  box-shadow: ${Theme.shadow.card};
+  padding: ${Theme.spacing.lg};
+
+  ${media.sm} {
+    padding: ${Theme.spacing.xl};
+  }
+
+  ${media.md} {
+    padding: ${Theme.spacing.xxl};
+  }
 `;
 
 const CardTitle = styled.h2`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.xl};
+
+  ${media.md} {
+    font-size: ${Theme.typography.h1};
+  }
 `;
 
 const SectionTitle = styled.h3`
-  font-size: 1.125rem;
+  font-size: ${Theme.typography.h3};
   font-weight: 600;
-  color: #1f2937;
-  margin: 1.5rem 0 1rem 0;
+  color: ${Theme.colors.text.strong};
+  margin: ${Theme.spacing.xl} 0 ${Theme.spacing.md} 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
+
+  ${media.md} {
+    font-size: ${Theme.typography.h2};
+  }
 `;
 
 const SettingsForm = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: ${Theme.spacing.lg};
 `;
 
 const FormGroup = styled.div<{ marginBottom?: string }>`
@@ -40,65 +58,94 @@ const FormGroup = styled.div<{ marginBottom?: string }>`
 
 const Label = styled.label`
   display: block;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.base};
+  margin-bottom: ${Theme.spacing.sm};
+
+  ${media.md} {
+    font-size: ${Theme.typography.body};
+  }
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
+  min-height: 44px; /* Touch-friendly */
+
+  ${media.md} {
+    font-size: 16px;
+  }
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
+  }
+
+  &:disabled {
+    background: ${Theme.colors.surface.muted};
+    cursor: not-allowed;
   }
 `;
 
 const Select = styled.select`
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
-  background: white;
+  background: ${Theme.colors.surface.base};
+  min-height: 44px; /* Touch-friendly */
+
+  ${media.md} {
+    font-size: 16px;
+  }
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
+  }
+
+  &:disabled {
+    background: ${Theme.colors.surface.muted};
+    cursor: not-allowed;
   }
 `;
 
 const TwoColumnGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+
+  ${media.sm} {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
 `;
 
 const InfoBox = styled.div`
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  color: #1e40af;
+  margin-top: ${Theme.spacing.md};
+  padding: ${Theme.spacing.md};
+  background: ${Theme.colors.accent.blueSoft};
+  border: 1px solid ${Theme.colors.accent.blue};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.brand.navy[700]};
+  box-shadow: ${Theme.shadow.soft};
 `;
 
 const HelpText = styled.p`
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin-top: 0.25rem;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
+  margin-top: ${Theme.spacing.xs};
   margin-bottom: 0;
 `;
 
@@ -112,90 +159,120 @@ const pulse = keyframes`
 const SaveButton = styled.button<{ $dirty: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: ${props => props.$dirty ? '#f59e0b' : '#1e3a8a'};
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  background: ${props => props.$dirty ? Theme.colors.status.warning : Theme.colors.brand.navy[700]};
+  color: ${Theme.colors.text.inverse};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
+  font-size: ${Theme.typography.body};
   border: none;
   cursor: pointer;
-  margin-top: 1.5rem;
-  transition: background 0.2s, transform 0.1s;
+  margin-top: ${Theme.spacing.xl};
+  transition: all 0.2s;
+  min-height: 48px; /* Extra touch-friendly */
+  box-shadow: ${Theme.shadow.soft};
+
+  ${media.md} {
+    padding: ${Theme.spacing.lg} ${Theme.spacing.xxl};
+    font-size: 16px;
+  }
 
   &:hover {
-    background: ${props => props.$dirty ? '#d97706' : '#1e40af'};
+    background: ${props => props.$dirty ? Theme.colors.brand.gold[600] : Theme.colors.brand.navy[600]};
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.card};
   }
 
   &:active {
-    transform: scale(0.98);
+    transform: translateY(0);
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.text.muted};
     cursor: not-allowed;
+    opacity: 0.6;
   }
 
   ${props => props.$dirty && css`animation: ${pulse} 2s infinite;`}
 `;
 
 const CoordinateHelper = styled.div`
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  background: #f0f9ff;
-  border-radius: 0.5rem;
-  border-left: 4px solid #0ea5e9;
+  margin-top: ${Theme.spacing.md};
+  padding: ${Theme.spacing.md};
+  background: ${Theme.colors.accent.blueSoft};
+  border-radius: ${Theme.radius.md};
+  border-left: 4px solid ${Theme.colors.accent.blue};
+  box-shadow: ${Theme.shadow.soft};
 `;
 
 const HelperHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 const HelperTitle = styled.div`
   font-weight: 600;
-  color: #0c4a6e;
+  color: ${Theme.colors.brand.navy[700]};
+  font-size: ${Theme.typography.body};
 `;
 
 const HelperSteps = styled.ol`
   margin: 0;
-  padding-left: 1.25rem;
-  color: #0c4a6e;
-  font-size: 0.875rem;
+  padding-left: ${Theme.spacing.xl};
+  color: ${Theme.colors.brand.navy[700]};
+  font-size: ${Theme.typography.small};
+
+  ${media.md} {
+    font-size: ${Theme.typography.body};
+  }
 `;
 
 const HelperStep = styled.li`
-  margin-bottom: 0.25rem;
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const MapButton = styled.a`
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: #1e3a8a;
-  color: white;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.sm} ${Theme.spacing.md};
+  background: ${Theme.colors.brand.navy[700]};
+  color: ${Theme.colors.text.inverse};
+  border-radius: ${Theme.radius.sm};
+  font-size: ${Theme.typography.small};
   font-weight: 500;
   text-decoration: none;
-  transition: background 0.2s;
-  margin-top: 0.5rem;
+  transition: all 0.2s;
+  margin-top: ${Theme.spacing.sm};
+  min-height: 40px; /* Touch-friendly */
+
+  ${media.md} {
+    font-size: ${Theme.typography.body};
+    padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  }
 
   &:hover {
-    background: #1e40af;
+    background: ${Theme.colors.brand.navy[600]};
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
   }
 `;
 
 const ErrorMessage = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #dc2626;
+  gap: ${Theme.spacing.xs};
+  margin-top: ${Theme.spacing.xs};
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.status.error};
 `;
 
 const InputWithValidation = styled.div`
@@ -204,76 +281,95 @@ const InputWithValidation = styled.div`
 
 const ValidationIcon = styled.div<{ $isValid: boolean }>`
   position: absolute;
-  right: 0.75rem;
-  top: 0.75rem;
-  color: ${props => props.$isValid ? '#10b981' : '#dc2626'};
+  right: ${Theme.spacing.md};
+  top: ${Theme.spacing.md};
+  color: ${props => props.$isValid ? Theme.colors.status.success : Theme.colors.status.error};
 `;
 
 const AddressInputGroup = styled.div`
   display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: ${Theme.spacing.sm};
+
+  ${media.sm} {
+    flex-direction: row;
+    align-items: flex-start;
+  }
 `;
 
 const AddressInputWrapper = styled.div`
-  flex: 1;
+  flex: 2;
 `;
 
 const GeocodeButton = styled.button`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  min-height: 44px;
+  background: ${Theme.colors.surface.card};
+  color: ${Theme.colors.brand.navy[700]};
+  border: 2px solid ${Theme.colors.brand.navy[700]};
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   white-space: nowrap;
 
+  ${media.sm} {
+    padding: ${Theme.spacing.sm} ${Theme.spacing.lg};
+    flex: 1;
+  }
+
   &:hover {
-    background: #2563eb;
+    background: ${Theme.colors.brand.navy[700]};
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.subtle};
+    border-color: ${Theme.colors.border.base};
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
 const GeocodeResultBox = styled.div<{ $success: boolean }>`
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  background: ${props => props.$success ? '#d1fae5' : '#fee2e2'};
-  border: 1px solid ${props => props.$success ? '#10b981' : '#dc2626'};
-  border-radius: 0.5rem;
+  margin-top: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md};
+  background: ${props => props.$success ? Theme.colors.status.successLight : Theme.colors.status.errorLight};
+  border: 1px solid ${props => props.$success ? Theme.colors.status.success : Theme.colors.status.error};
+  border-radius: ${Theme.radius.md};
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const GeocodeResultIcon = styled.div<{ $success: boolean }>`
-  color: ${props => props.$success ? '#059669' : '#dc2626'};
+  color: ${props => props.$success ? Theme.colors.status.successDark : Theme.colors.status.errorDark};
   flex-shrink: 0;
 `;
 
 const GeocodeResultText = styled.div`
   flex: 1;
+  font-size: ${Theme.typography.small};
 `;
 
 const GeocodeResultTitle = styled.div<{ $success: boolean }>`
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   font-weight: 600;
-  color: ${props => props.$success ? '#065f46' : '#991b1b'};
-  margin-bottom: 0.25rem;
+  color: ${props => props.$success ? Theme.colors.status.successDark : Theme.colors.status.errorDark};
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const GeocodeResultMessage = styled.div<{ $success: boolean }>`
-  font-size: 0.75rem;
-  color: ${props => props.$success ? '#047857' : '#b91c1c'};
+  font-size: ${Theme.typography.small};
+  color: ${props => props.$success ? Theme.colors.status.success : Theme.colors.status.error};
 `;
 
 interface GeocodeResult {
@@ -546,7 +642,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
                 onChange={(e) => handleCoordinateChange('latitude', e.target.value)}
                 placeholder="-33.8688"
                 style={{ 
-                  borderColor: errors.latitude ? '#dc2626' : undefined,
+                  borderColor: errors.latitude ? Theme.colors.status.error : undefined,
                   paddingRight: '2.5rem'
                 }}
               />
@@ -579,7 +675,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
                 onChange={(e) => handleCoordinateChange('longitude', e.target.value)}
                 placeholder="151.2093"
                 style={{ 
-                  borderColor: errors.longitude ? '#dc2626' : undefined,
+                  borderColor: errors.longitude ? Theme.colors.status.error : undefined,
                   paddingRight: '2.5rem'
                 }}
               />
@@ -606,7 +702,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
 
         <CoordinateHelper>
           <HelperHeader>
-            <Info size={16} color="#0ea5e9" />
+            <Info size={16} color={Theme.colors.accent.blue} />
             <HelperTitle>Manual coordinate entry (optional)</HelperTitle>
           </HelperHeader>
           <HelperSteps>

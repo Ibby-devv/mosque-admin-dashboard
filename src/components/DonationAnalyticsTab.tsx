@@ -3,10 +3,12 @@
 // Location: mosque-admin-dashboard/src/components/DonationAnalyticsTab.tsx
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Download, RefreshCw, DollarSign, TrendingUp, Calendar, Repeat } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import Card from './ui/Card';
+import { Theme, media } from '../constants/theme';
 
 // ============================================================================
 // TYPES
@@ -51,47 +53,50 @@ interface DonationAnalyticsResponse {
 // STYLED COMPONENTS
 // ============================================================================
 
-const Container = styled.div`
-  padding: 2rem;
-`;
+const Container = Card;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const Title = styled.h2`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: 700;
-  color: #1e3a8a;
+  color: ${Theme.colors.text.strong};
   margin: 0;
+
+  ${media.sm} { font-size: ${Theme.typography.h1}; }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.sm};
 `;
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 44px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
   border: none;
   cursor: pointer;
-  background: ${props => props.$variant === 'primary' ? '#1e3a8a' : '#f3f4f6'};
-  color: ${props => props.$variant === 'primary' ? 'white' : '#374151'};
+  background: ${props => props.$variant === 'primary' ? Theme.colors.brand.navy[700] : Theme.colors.surface.muted};
+  color: ${props => props.$variant === 'primary' ? 'white' : Theme.colors.text.strong};
+  transition: all 0.2s;
 
   &:hover {
-    background: ${props => props.$variant === 'primary' ? '#1e40af' : '#e5e7eb'};
+    background: ${props => props.$variant === 'primary' ? Theme.colors.brand.navy[600] : Theme.colors.surface.base};
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
     color: white;
   }
@@ -100,16 +105,19 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
 const SummaryGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: ${Theme.spacing.xl};
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const SummaryCard = styled.div<{ color: string }>`
-  background: white;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  background: ${Theme.colors.surface.card};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  box-shadow: ${Theme.shadow.soft};
   border-left: 4px solid ${props => props.color};
+
+  &:hover { box-shadow: ${Theme.shadow.card}; }
 `;
 
 const SummaryIcon = styled.div<{ color: string }>`
@@ -125,37 +133,40 @@ const SummaryIcon = styled.div<{ color: string }>`
 `;
 
 const SummaryLabel = styled.div`
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const SummaryValue = styled.div`
   font-size: 1.875rem;
   font-weight: 700;
-  color: #1f2937;
+  color: ${Theme.colors.text.strong};
 `;
 
 const SummarySubtext = styled.div`
-  font-size: 0.75rem;
-  color: #9ca3af;
-  margin-top: 0.5rem;
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.subtle};
+  margin-top: ${Theme.spacing.sm};
 `;
 
 const TableSection = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  background: ${Theme.colors.surface.card};
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
+  box-shadow: ${Theme.shadow.soft};
   overflow-x: auto;
-  margin-bottom: 2rem;
+  margin-bottom: ${Theme.spacing.xl};
+
+  &:hover { box-shadow: ${Theme.shadow.card}; }
 `;
 
 const SectionTitle = styled.h3`
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 1rem 0;
+  font-size: ${Theme.typography.h3};
+  font-weight: 700;
+  color: ${Theme.colors.text.strong};
+  margin: 0 0 ${Theme.spacing.md} 0;
 `;
 
 const Table = styled.table`
@@ -165,54 +176,52 @@ const Table = styled.table`
 
 const Th = styled.th`
   text-align: left;
-  padding: 0.75rem;
-  border-bottom: 2px solid #e5e7eb;
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.875rem;
+  padding: ${Theme.spacing.md};
+  border-bottom: 2px solid ${Theme.colors.border.base};
+  font-weight: 700;
+  color: ${Theme.colors.text.strong};
+  font-size: ${Theme.typography.small};
   white-space: nowrap;
 `;
 
 const Td = styled.td`
-  padding: 0.75rem;
-  border-bottom: 1px solid #f3f4f6;
-  font-size: 0.875rem;
-  color: #6b7280;
+  padding: ${Theme.spacing.md};
+  border-bottom: 1px solid ${Theme.colors.surface.muted};
+  font-size: ${Theme.typography.small};
+  color: ${Theme.colors.text.muted};
 `;
 
 const StatusBadge = styled.span<{ status: string }>`
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: ${Theme.spacing.xs} ${Theme.spacing.lg};
+  border-radius: ${Theme.radius.pill};
+  font-size: ${Theme.typography.small};
+  font-weight: 700;
   background: ${props => 
-    props.status === 'succeeded' ? '#d1fae5' :
-    props.status === 'active' ? '#d1fae5' :
-    props.status === 'pending' ? '#fef3c7' :
-    props.status === 'failed' ? '#fee2e2' :
-    '#f3f4f6'
+    props.status === 'succeeded' || props.status === 'active' ? Theme.colors.status.successLight :
+    props.status === 'pending' ? Theme.colors.status.warning :
+    props.status === 'failed' ? Theme.colors.status.errorLight :
+    Theme.colors.surface.muted
   };
   color: ${props =>
-    props.status === 'succeeded' ? '#065f46' :
-    props.status === 'active' ? '#065f46' :
-    props.status === 'pending' ? '#92400e' :
-    props.status === 'failed' ? '#991b1b' :
-    '#374151'
+    props.status === 'succeeded' || props.status === 'active' ? Theme.colors.status.successDark :
+    props.status === 'pending' ? Theme.colors.text.strong :
+    props.status === 'failed' ? Theme.colors.status.errorDark :
+    Theme.colors.text.muted
   };
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 3rem;
-  color: #6b7280;
+  color: ${Theme.colors.text.muted};
 `;
 
 const LoadingState = styled.div`
   text-align: center;
   padding: 3rem;
-  color: #6b7280;
-  font-size: 1.125rem;
+  color: ${Theme.colors.text.muted};
+  font-size: ${Theme.typography.h3};
 `;
 
 // ============================================================================
@@ -285,12 +294,7 @@ export default function DonationAnalyticsTab({
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<DonationAnalyticsResponse | null>(null);
 
-  // Load data on mount
-  useEffect(() => {
-    loadAnalytics();
-  }, []);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       const functions = getFunctions(undefined, 'australia-southeast1');
@@ -312,7 +316,12 @@ export default function DonationAnalyticsTab({
     } finally {
       setLoading(false);
     }
-  };
+  }, [onSaveStatusChange]);
+
+  // Load data on mount
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   const handleExportCSV = () => {
     if (!data || !data.donations.length) return;
