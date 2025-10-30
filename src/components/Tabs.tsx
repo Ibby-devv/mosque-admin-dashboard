@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Clock, Calendar, DollarSign, Bell, Settings, CalendarDays } from 'lucide-react';
+import { Clock, Calendar, DollarSign, Bell, Settings, CalendarDays, Shield } from 'lucide-react';
 import { TabsProps } from '../types';
 import { Theme, media } from '../constants/theme';
 
@@ -96,7 +96,8 @@ export default function Tabs({ activeTab, onTabChange }: TabsProps): React.JSX.E
     { id: 'events', label: 'Events', icon: <Calendar size={18} /> },
     { id: 'donations', label: 'Donations', icon: <DollarSign size={18} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
-    { id: 'settings', label: 'Settings', icon: <Settings size={18} /> }
+    { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
+    { id: 'admin', label: 'Admin', icon: <Shield size={18} /> }
   ];
 
   return (

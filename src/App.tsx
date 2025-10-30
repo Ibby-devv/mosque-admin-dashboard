@@ -19,6 +19,7 @@ import MosqueSettingsTab from "./components/MosqueSettingsTab";
 import EventsTab from "./components/EventsTab";
 import DonationsTab from './components/DonationsTab';
 import NotificationsTab from './components/NotificationsTab';
+import AdminManagementTab from './components/AdminManagementTab';
 import Loading from './components/ui/Loading';
 import ToastContainer from './components/ui/ToastContainer';
 // Import custom hook
@@ -38,6 +39,7 @@ const db = getFirestore();
 export default function AdminDashboard(): React.JSX.Element {
   const {
     isAuthenticated,
+    isAdmin,
     loading: authLoading,
     error: authError,
     login,
@@ -215,6 +217,53 @@ export default function AdminDashboard(): React.JSX.Element {
     await logout();
   };
 
+  // Block access if authenticated but not admin
+  if (!authLoading && isAuthenticated && !isAdmin) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        padding: '2rem',
+        textAlign: 'center',
+        background: '#f5f5f5'
+      }}>
+        <div style={{ 
+          background: 'white', 
+          padding: '3rem', 
+          borderRadius: '12px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          maxWidth: '500px'
+        }}>
+          <h2 style={{ color: '#dc3545', marginBottom: '1rem' }}>⛔ Unauthorized Access</h2>
+          <p style={{ marginBottom: '1.5rem', color: '#666' }}>
+            This dashboard is restricted to administrators only.
+          </p>
+          <p style={{ fontSize: '0.9rem', color: '#999', marginBottom: '2rem' }}>
+            If you believe this is an error, please contact your administrator.
+          </p>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              padding: '0.75rem 2rem',
+              background: '#0f172a',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const showSaveStatus = (success: boolean): void => {
     setSaveStatus(success ? "success" : "error");
     setTimeout(() => setSaveStatus(""), 3000);
@@ -367,6 +416,10 @@ export default function AdminDashboard(): React.JSX.Element {
             saving={saving}
             onSaveStatusChange={showSaveStatus}
           />
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminManagementTab />
         )}
 
         {activeTab === "settings" && (
