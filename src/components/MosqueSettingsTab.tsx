@@ -311,6 +311,13 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   };
 
   const handleSave = async () => {
+    // Normalize social links before saving to ensure consistent URLs in Firestore
+    const normalizedFacebook = normalizeFacebook(mosqueSettings?.facebook || '');
+    const normalizedInstagram = normalizeInstagram(mosqueSettings?.instagram || '');
+    if ((mosqueSettings?.facebook || '') !== normalizedFacebook || (mosqueSettings?.instagram || '') !== normalizedInstagram) {
+      onChange({ ...mosqueSettings, facebook: normalizedFacebook, instagram: normalizedInstagram });
+      setHasUnsavedChanges(true);
+    }
     await onSave();
     setHasUnsavedChanges(false);
   };
@@ -368,6 +375,29 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   ];
 
   const hasErrors = !!errors.latitude || !!errors.longitude;
+
+  // --- Social link normalization helpers ---
+  const normalizeFacebook = (raw: string): string => {
+    const v = (raw || '').trim();
+    if (!v) return '';
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    let s = v.startsWith('@') ? v.slice(1) : v;
+    if (s.startsWith('www.')) s = s.slice(4);
+    if (s.startsWith('facebook.com/')) return `https://${s}`;
+    if (s === 'facebook.com') return 'https://facebook.com/';
+    return `https://facebook.com/${s}`;
+  };
+
+  const normalizeInstagram = (raw: string): string => {
+    const v = (raw || '').trim();
+    if (!v) return '';
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    let s = v.startsWith('@') ? v.slice(1) : v;
+    if (s.startsWith('www.')) s = s.slice(4);
+    if (s.startsWith('instagram.com/')) return `https://${s}`;
+    if (s === 'instagram.com') return 'https://instagram.com/';
+    return `https://instagram.com/${s}`;
+  };
 
 
 
@@ -461,6 +491,37 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
             onChange={(e) => handleChange('imam', e.target.value)}
           />
         </FormGroup>
+
+        <SectionTitle>
+          <ExternalLink size={20} />
+          Social Links
+        </SectionTitle>
+
+        <TwoColumnGrid>
+          <FormGroup>
+            <Label>Facebook</Label>
+            <Input
+              type="text"
+              value={mosqueSettings?.facebook || ''}
+              onChange={(e) => handleChange('facebook', e.target.value)}
+              onBlur={(e) => handleChange('facebook', normalizeFacebook(e.target.value))}
+              placeholder="https://facebook.com/yourpage or @yourpage"
+            />
+            <HelpText>Paste full URL or handle; we'll store a full URL.</HelpText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Instagram</Label>
+            <Input
+              type="text"
+              value={mosqueSettings?.instagram || ''}
+              onChange={(e) => handleChange('instagram', e.target.value)}
+              onBlur={(e) => handleChange('instagram', normalizeInstagram(e.target.value))}
+              placeholder="https://instagram.com/yourhandle or @yourhandle"
+            />
+            <HelpText>Paste full URL or handle; we'll store a full URL.</HelpText>
+          </FormGroup>
+        </TwoColumnGrid>
 
         <SectionTitle>
           <MapPin size={20} />

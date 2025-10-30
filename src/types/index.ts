@@ -46,6 +46,8 @@ export interface MosqueSettings {
   phone?: string;
   email?: string;
   website?: string;
+  facebook?: string;
+  instagram?: string;
   imam?: string;
   latitude?: number;
   longitude?: number;
