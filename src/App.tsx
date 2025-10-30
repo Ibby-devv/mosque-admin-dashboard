@@ -105,16 +105,11 @@ export default function AdminDashboard(): React.JSX.Element {
   const loadData = useCallback(async (): Promise<void> => {
     // Double-check authentication
     if (!isAuthenticated) {
-      console.log("⏳ Skipping loadData - not authenticated yet");
       return;
     }
 
     try {
-      console.log("📖 Loading data from Firebase...");
-
-      console.log("  → Loading prayer times...");
       const prayerDoc = await getDoc(doc(db, "prayerTimes", "current"));
-      console.log("  ✅ Prayer times fetched:", prayerDoc.exists());
 
       if (prayerDoc.exists()) {
         const data = prayerDoc.data() as PrayerTimes;
@@ -131,25 +126,19 @@ export default function AdminDashboard(): React.JSX.Element {
         setPrayerTimes(data);
       }
 
-      console.log("  → Loading jumuah times (new structure)...");
       const jumuahDoc = await getDoc(doc(db, "jumuahTimes", "current"));
-      console.log("  ✅ Jumuah times fetched:", jumuahDoc.exists());
 
       if (jumuahDoc.exists()) {
         setJumuahTimes(jumuahDoc.data() as JumuahData);
       }
 
-      console.log("  → Loading mosque settings...");
       const settingsDoc = await getDoc(doc(db, "mosqueSettings", "info"));
-      console.log("  ✅ Mosque settings fetched:", settingsDoc.exists());
 
       if (settingsDoc.exists()) {
         setMosqueSettings(settingsDoc.data() as MosqueSettings);
       }
-
-      console.log("✅ Data loaded successfully");
     } catch (error) {
-      console.error("❌ Error loading data (may be temporary):", error);
+      console.error("Error loading data:", error);
     }
   }, [isAuthenticated]);
 
@@ -175,15 +164,11 @@ export default function AdminDashboard(): React.JSX.Element {
         (docSnapshot) => {
           if (docSnapshot.exists()) {
             setDonationSettings(docSnapshot.data() as DonationSettings);
-            console.log("✅ Donation settings loaded");
           }
         },
         (error) => {
           // Log error but don't show notification (real-time listener can fail temporarily)
-          console.warn(
-            "⚠️ Donation settings listener error (temporary):",
-            error.message
-          );
+          console.error("Donation settings listener error:", error);
         }
       );
 
@@ -279,10 +264,9 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, "prayerTimes", "current"), updatedPrayerTimes);
       setPrayerTimes(updatedPrayerTimes);
-      console.log("✅ Prayer times saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving prayer times:", error);
+      console.error("Error saving prayer times:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -293,8 +277,6 @@ export default function AdminDashboard(): React.JSX.Element {
     setSaving(true);
     try {
       if (!jumuahTimes) {
-        // Nothing to save yet (user hasn't made changes and no data loaded)
-        console.warn("ℹ️ No Jumuah data to save.");
         setSaving(false);
         return;
       }
@@ -305,10 +287,9 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, "jumuahTimes", "current"), updatedJumuah);
       setJumuahTimes(updatedJumuah);
-      console.log("✅ Jumuah times saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving Jumuah times:", error);
+      console.error("Error saving Jumuah times:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -324,10 +305,9 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, "mosqueSettings", "info"), updatedSettings);
       setMosqueSettings(updatedSettings);
-      console.log("✅ Mosque settings saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving mosque settings:", error);
+      console.error("Error saving mosque settings:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -343,10 +323,9 @@ export default function AdminDashboard(): React.JSX.Element {
         ...donationSettings,
         updated_at: serverTimestamp(),
       });
-      console.log("✅ Donation settings saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving donation settings:", error);
+      console.error("Error saving donation settings:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
