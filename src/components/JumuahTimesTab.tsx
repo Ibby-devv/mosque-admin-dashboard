@@ -3,6 +3,8 @@ import styled, { keyframes, css } from "styled-components";
 import { Save, Plus, Trash2, X } from "lucide-react";
 import { JumuahTimesTabProps } from "../types";
 import TimeInput from './TimeInput';
+import { Theme, media } from '../constants/theme';
+import Card from './ui/Card';
 
 // Define the new data structure for Jumuah times
 interface JumuahTime {
@@ -15,35 +17,39 @@ interface JumuahData {
   last_updated: string;
 }
 
-// Styled Components
-const Card = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-`;
+// Styled Components (Card imported from shared ui/Card)
 
 const CardTitle = styled.h2`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: 0;
+
+  ${media.sm} {
+    font-size: ${Theme.typography.h1};
+  }
 `;
 
 const HeaderRow = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  flex-direction: column;
+  gap: ${Theme.spacing.md};
+  margin-bottom: ${Theme.spacing.xl};
+
+  ${media.sm} {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
 `;
 
 const TitleSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
 `;
 
-// Reuse the same pulse animation used in MosqueSettingsTab for visual consistency
+// Pulse animation
 const pulse = keyframes`
   0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
   70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
@@ -53,7 +59,7 @@ const pulse = keyframes`
 const UnsavedIndicator = styled.div`
   width: 8px;
   height: 8px;
-  background: #f59e0b;
+  background: ${Theme.colors.status.warning};
   border-radius: 50%;
   box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
   animation: ${pulse} 2s infinite;
@@ -61,116 +67,138 @@ const UnsavedIndicator = styled.div`
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 0.75rem;
+  gap: ${Theme.spacing.md};
 `;
 
 const Button = styled.button<{ variant?: "primary" | "danger" }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
+  font-size: ${Theme.typography.body};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   background: ${(props) =>
-    props.variant === "danger" ? "#dc2626" : "#1e3a8a"};
+    props.variant === "danger" ? Theme.colors.status.error : Theme.colors.brand.navy[700]};
   color: white;
 
   &:hover {
     background: ${(props) =>
-      props.variant === "danger" ? "#b91c1c" : "#1e40af"};
+      props.variant === "danger" ? Theme.colors.status.errorDark : Theme.colors.brand.navy[600]};
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
 const SmallButton = styled.button<{ variant?: "primary" | "danger" }>`
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
+  gap: ${Theme.spacing.xs};
+  padding: ${Theme.spacing.sm} ${Theme.spacing.md};
+  min-height: 36px;
+  border-radius: ${Theme.radius.sm};
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   background: ${(props) =>
-    props.variant === "danger" ? "#dc2626" : "#1e3a8a"};
+    props.variant === "danger" ? Theme.colors.status.error : Theme.colors.brand.navy[700]};
   color: white;
 
   &:hover {
     background: ${(props) =>
-      props.variant === "danger" ? "#b91c1c" : "#1e40af"};
+      props.variant === "danger" ? Theme.colors.status.errorDark : Theme.colors.brand.navy[600]};
+    transform: translateY(-1px);
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
 const JumuahGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+  margin-bottom: ${Theme.spacing.xl};
+
+  ${media.sm} {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
 `;
 
 const JumuahCard = styled.div`
-  border: 1px solid #10b981;
-  background: #f0fbfd;
-  border-radius: 0.75rem;
-  border-left: 4px solid #10b981;
-  padding: 1.25rem;
+  border: 1px solid ${Theme.colors.border.base};
+  background: ${Theme.colors.surface.card};
+  border-radius: ${Theme.radius.md};
+  border-left: 4px solid ${Theme.colors.brand.navy[700]};
+  padding: ${Theme.spacing.lg};
   position: relative;
+  box-shadow: ${Theme.shadow.soft};
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: ${Theme.shadow.card};
+    border-color: ${Theme.colors.brand.navy[700]};
+  }
 `;
 
 const JumuahTitle = styled.h3`
-  font-size: 1.125rem;
+  font-size: ${Theme.typography.h3};
   font-weight: bold;
-  color: #1f2937;
-  margin-bottom: 1rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.lg};
 `;
 
 const TimeInputGroup = styled.div`
-  margin-bottom: 0.75rem;
+  margin-bottom: ${Theme.spacing.md};
 `;
 
 const TimeLabel = styled.label`
   display: block;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   font-weight: 500;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
+  color: ${Theme.colors.text.muted};
+  margin-bottom: ${Theme.spacing.xs};
 `;
 
 const ReadOnlyTimeDisplay = styled.input`
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
   }
 `;
 
 const CardActions = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: ${Theme.spacing.sm};
+  margin-top: ${Theme.spacing.lg};
 `;
 
 const Modal = styled.div<{ $show: boolean }>`
@@ -183,56 +211,74 @@ const Modal = styled.div<{ $show: boolean }>`
   background: rgba(0, 0, 0, 0.5);
   z-index: 1000;
   overflow-y: auto;
+  padding: ${Theme.spacing.lg};
 `;
 
 const ModalContent = styled.div`
-  background: white;
+  background: ${Theme.colors.surface.card};
   max-width: 42rem;
   margin: 2rem auto;
-  border-radius: 1rem;
-  padding: 2rem;
+  border-radius: ${Theme.radius.lg};
+  padding: ${Theme.spacing.xl};
   position: relative;
+  box-shadow: ${Theme.shadow.card};
+
+  ${media.sm} {
+    padding: ${Theme.spacing.xxl};
+  }
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const ModalTitle = styled.h3`
-  font-size: 1.5rem;
+  font-size: ${Theme.typography.h2};
   font-weight: bold;
-  color: #1f2937;
+  color: ${Theme.colors.text.strong};
+
+  ${media.sm} {
+    font-size: ${Theme.typography.h1};
+  }
 `;
 
 const CloseButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem;
-  color: #6b7280;
+  padding: ${Theme.spacing.sm};
+  color: ${Theme.colors.text.muted};
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: ${Theme.radius.sm};
+  transition: all 0.2s;
 
   &:hover {
-    color: #1f2937;
+    color: ${Theme.colors.text.strong};
+    background: ${Theme.colors.surface.muted};
   }
 `;
 
 const Form = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: ${Theme.spacing.lg};
 `;
 
 const FormGroup = styled.div``;
 
 const Label = styled.label`
   display: block;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.body};
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
+  color: ${Theme.colors.text.strong};
+  margin-bottom: ${Theme.spacing.sm};
 `;
 
 // Removed unused Input styled component - now using TimeInput component
@@ -240,18 +286,23 @@ const Label = styled.label`
 const SaveButton = styled.button<{ $hasChanges?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  background: ${(props) => (props.$hasChanges ? "#f59e0b" : "#1e3a8a")};
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  background: ${(props) => (props.$hasChanges ? Theme.colors.status.warning : Theme.colors.brand.navy[700])};
   color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
+  font-size: ${Theme.typography.body};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: ${(props) => (props.$hasChanges ? "#d97706" : "#1e40af")};
+    background: ${(props) => (props.$hasChanges ? Theme.colors.brand.gold[600] : Theme.colors.brand.navy[600])};
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:active {
@@ -259,8 +310,9 @@ const SaveButton = styled.button<{ $hasChanges?: boolean }>`
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
+    transform: none;
   }
 
   ${props => props.$hasChanges && css`animation: ${pulse} 2s infinite;`}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Settings } from 'lucide-react';
 import { LoginFormProps } from '../types';
 
 const LoginContainer = styled.div`
@@ -26,15 +25,11 @@ const LoginHeader = styled.div`
   margin-bottom: 2rem;
 `;
 
-const IconCircle = styled.div`
-  background: #1e3a8a;
-  width: 4rem;
-  height: 4rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+const LogoImg = styled.img`
+  height: 56px;
+  width: auto;
   margin: 0 auto 1rem;
+  display: block;
 `;
 
 const LoginTitle = styled.h1`
@@ -144,9 +139,7 @@ export default function LoginForm({ onLogin, error: authError }: LoginFormProps)
     <LoginContainer>
       <LoginCard>
         <LoginHeader>
-          <IconCircle>
-            <Settings color="white" size={32} />
-          </IconCircle>
+          <LogoImg src="/logo-navy.svg" alt="Mosque Logo" />
           <LoginTitle>Admin Dashboard</LoginTitle>
           <LoginSubtitle>Al Madina Masjid Yagoona</LoginSubtitle>
         </LoginHeader>

@@ -10,42 +10,44 @@ import DonationAnalyticsTab from './DonationAnalyticsTab';
 import DonationSettingsTab from './DonationSettingsTab';
 import { DonationSettings } from '../types';
 import CampaignsTab from './CampaignsTab';
+import Card from './ui/Card';
+import { Theme, media } from '../constants/theme';
 // ============================================================================
 // STYLED COMPONENTS
 // ============================================================================
 
-const Container = styled.div`
-  background: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-`;
+const Container = Card;
 
 const TabContainer = styled.div`
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  margin-bottom: ${Theme.spacing.xl};
+  border-bottom: 2px solid ${Theme.colors.border.base};
+  padding-bottom: ${Theme.spacing.sm};
 `;
 
 const Tab = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 44px;
   border: none;
-  background: ${props => props.$active ? '#1e3a8a' : 'transparent'};
-  color: ${props => props.$active ? 'white' : '#6b7280'};
-  border-radius: 0.5rem;
+  background: ${props => props.$active ? Theme.colors.brand.navy[700] : 'transparent'};
+  color: ${props => props.$active ? 'white' : Theme.colors.text.muted};
+  border-radius: ${Theme.radius.sm};
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: ${Theme.typography.small};
   transition: all 0.2s;
 
+  ${media.sm} {
+    font-size: ${Theme.typography.body};
+  }
+
   &:hover {
-    background: ${props => props.$active ? '#1e40af' : '#f3f4f6'};
-    color: ${props => props.$active ? 'white' : '#1e3a8a'};
+    background: ${props => props.$active ? Theme.colors.brand.navy[600] : Theme.colors.surface.muted};
+    color: ${props => props.$active ? 'white' : Theme.colors.brand.navy[700]};
   }
 `;
 

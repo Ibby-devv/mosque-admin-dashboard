@@ -39,7 +39,6 @@ export interface JumuahData {
   last_updated: string;
 }
 
-
 export interface MosqueSettings {
   name: string;
   address?: string;
@@ -98,6 +97,7 @@ export interface LoginFormProps {
 
 export interface HeaderProps {
   onLogout: () => void;
+  onHome?: () => void;
 }
 
 export interface TabsProps {

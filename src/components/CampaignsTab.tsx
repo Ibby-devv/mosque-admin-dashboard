@@ -5,10 +5,11 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Save, Plus, Edit2, Trash2, X, Target, Calendar, DollarSign } from 'lucide-react';
+import { Save, Plus, Edit2, Trash2, X, Calendar } from 'lucide-react';
+import Card from './ui/Card';
+import { Theme } from '../constants/theme';
 import {
   collection,
-  addDoc,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -44,51 +45,51 @@ interface Campaign {
 // STYLED COMPONENTS
 // ============================================================================
 
-const Container = styled.div`
-  padding: 0;
-`;
+const Container = Card;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: ${Theme.spacing.xl};
 `;
 
 const Title = styled.h2`
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-size: ${Theme.typography.h2};
+  font-weight: 700;
+  color: ${Theme.colors.text.strong};
   margin: 0;
 `;
 
 const Button = styled.button<{ $variant?: 'primary' | 'danger' | 'success' }>`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   background: ${props =>
-    props.$variant === 'danger' ? '#dc2626' :
-      props.$variant === 'success' ? '#059669' :
-        '#1e3a8a'
+    props.$variant === 'danger' ? Theme.colors.status.error :
+    props.$variant === 'success' ? Theme.colors.status.success :
+    Theme.colors.brand.navy[700]
   };
   color: white;
 
   &:hover {
     background: ${props =>
-    props.$variant === 'danger' ? '#b91c1c' :
-      props.$variant === 'success' ? '#047857' :
-        '#1e40af'
-  };
+      props.$variant === 'danger' ? Theme.colors.status.errorDark :
+      props.$variant === 'success' ? Theme.colors.status.successDark :
+      Theme.colors.brand.navy[600]
+    };
+    box-shadow: ${Theme.shadow.soft};
   }
 
   &:disabled {
-    background: #9ca3af;
+    background: ${Theme.colors.border.medium};
     cursor: not-allowed;
   }
 `;
@@ -125,28 +126,21 @@ const CampaignsGrid = styled.div`
 `;
 
 const CampaignCard = styled.div<{ $status: string }>`
-  border: 1px solid ${props =>
-    props.$status === 'active' ? '#10b981' :
-      props.$status === 'paused' ? '#f59e0b' :
-        '#9ca3af'
-  };
-  background: ${props =>
-    props.$status === 'active' ? '#f0fdf4' :
-      props.$status === 'paused' ? '#fffbeb' :
-        '#f9fafb'
-  };
+  border: 1px solid ${Theme.colors.border.base};
+  background: ${Theme.colors.surface.card};
   border-left: 4px solid ${props =>
-    props.$status === 'active' ? '#10b981' :
-      props.$status === 'paused' ? '#f59e0b' :
-        '#9ca3af'
+    props.$status === 'active' ? Theme.colors.status.success :
+    props.$status === 'paused' ? Theme.colors.status.warning :
+    Theme.colors.border.medium
   };
-  border-radius: 0.75rem;
-  padding: 1.25rem;
+  border-radius: ${Theme.radius.md};
+  padding: ${Theme.spacing.lg};
   position: relative;
   transition: all 0.2s;
+  box-shadow: ${Theme.shadow.soft};
 
   &:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: ${Theme.shadow.card};
   }
 `;
 
@@ -392,6 +386,7 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
   // Load campaigns on mount
   useEffect(() => {
     loadCampaigns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadCampaigns = async () => {
