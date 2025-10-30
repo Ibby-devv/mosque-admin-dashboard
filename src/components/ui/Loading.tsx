@@ -48,12 +48,11 @@ const Container = styled.div<{ $fullPage?: boolean }>`
 `;
 
 const LogoWrapper = styled.div`
-  width: 80px;
-  height: 80px;
+  width: min(400px, 40vw);
+  height: min(400px, 40vw);
   border-radius: ${Theme.radius.lg};
   overflow: hidden;
   animation: ${pulse} 2s ease-in-out infinite;
-  box-shadow: ${Theme.shadow.card};
 `;
 
 const Logo = styled.img`
@@ -69,7 +68,7 @@ const SpinnerWrapper = styled.div`
 
 const LoadingText = styled.p`
   color: ${Theme.colors.text.muted};
-  font-size: ${Theme.typography.body};
+  font-size: ${Theme.typography.h1};
   font-weight: 500;
   margin: 0;
 `;
