@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Save, Plus, Edit2, Trash2, X, Calendar } from 'lucide-react';
 import Card from './ui/Card';
+import Pagination from './ui/Pagination';
 import { Theme } from '../constants/theme';
 import {
   collection,
@@ -282,10 +283,10 @@ const Label = styled.label`
   margin-bottom: 0.5rem;
 `;
 
-const Input = styled.input`
+const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid ${props => props.$hasError ? Theme.colors.status.error : '#d1d5db'};
   border-radius: 0.5rem;
   font-size: 1rem;
   outline: none;
@@ -293,15 +294,15 @@ const Input = styled.input`
   box-sizing: border-box;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${props => props.$hasError ? Theme.colors.status.error : '#1e3a8a'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? Theme.colors.status.errorLight : 'rgba(30, 58, 138, 0.1)'};
   }
 `;
 
-const TextArea = styled.textarea`
+const TextArea = styled.textarea<{ $hasError?: boolean }>`
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid ${props => props.$hasError ? Theme.colors.status.error : '#d1d5db'};
   border-radius: 0.5rem;
   font-size: 1rem;
   outline: none;
@@ -312,9 +313,17 @@ const TextArea = styled.textarea`
   font-family: inherit;
 
   &:focus {
-    border-color: #1e3a8a;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    border-color: ${props => props.$hasError ? Theme.colors.status.error : '#1e3a8a'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? Theme.colors.status.errorLight : 'rgba(30, 58, 138, 0.1)'};
   }
+`;
+
+const ErrorText = styled.span`
+  display: block;
+  color: ${Theme.colors.status.error};
+  font-size: ${Theme.typography.small};
+  margin-top: ${Theme.spacing.xs};
+  font-weight: 500;
 `;
 
 const TwoColumnGrid = styled.div`
@@ -382,6 +391,23 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
     image_url: '',
     is_visible_in_app: true,
   });
+  const [errors, setErrors] = useState<{
+    title?: string;
+    goal_amount?: string;
+    start_date?: string;
+    end_date?: string;
+  }>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9; // 3x3 grid
+
+  // Calculate pagination
+  const totalPages = Math.ceil(campaigns.length / itemsPerPage);
+  const paginatedCampaigns = campaigns.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   // Load campaigns on mount
   useEffect(() => {
@@ -435,6 +461,7 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
         is_visible_in_app: true,
       });
     }
+    setErrors({});
     setShowModal(true);
   };
 
@@ -445,14 +472,43 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
 
   const handleInputChange = (field: keyof Campaign, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error for this field
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {};
+
+    if (!formData.title?.trim()) {
+      newErrors.title = 'Title is required';
+    } else if (formData.title.length > 100) {
+      newErrors.title = 'Title must be 100 characters or less';
+    }
+
+    if (!formData.goal_amount || formData.goal_amount <= 0) {
+      newErrors.goal_amount = 'Goal amount must be greater than 0';
+    }
+
+    if (!formData.start_date) {
+      newErrors.start_date = 'Start date is required';
+    }
+
+    if (formData.end_date && formData.start_date && formData.end_date < formData.start_date) {
+      newErrors.end_date = 'End date must be after start date';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSaveCampaign = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
-      if (!formData.title || !formData.goal_amount || !formData.start_date) {
-        alert('Please fill in required fields: Title, Goal Amount, and Start Date');
-        return;
-      }
 
       // Convert dollars to cents for storage
       const campaignData = {
@@ -551,9 +607,10 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
           </Button>
         </EmptyState>
       ) : (
-        <CampaignsGrid>
-          {campaigns.map(campaign => {
-            const progress = calculateProgress(campaign.current_amount, campaign.goal_amount);
+        <>
+          <CampaignsGrid>
+            {paginatedCampaigns.map(campaign => {
+              const progress = calculateProgress(campaign.current_amount, campaign.goal_amount);
 
             return (
               <CampaignCard key={campaign.id} $status={campaign.status}>
@@ -615,6 +672,15 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
             );
           })}
         </CampaignsGrid>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={campaigns.length}
+        />
+        </>
       )}
 
       {/* Campaign Modal */}
@@ -637,7 +703,9 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                 value={formData.title || ''}
                 onChange={(e) => handleInputChange('title', e.target.value)}
                 placeholder="e.g., Ramadan Fund 2025"
+                $hasError={!!errors.title}
               />
+              {errors.title && <ErrorText>{errors.title}</ErrorText>}
             </FormGroup>
 
             <FormGroup>
@@ -659,7 +727,9 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                   value={formData.goal_amount || ''}
                   onChange={(e) => handleInputChange('goal_amount', parseFloat(e.target.value) || 0)}
                   placeholder="e.g., 25000"
+                  $hasError={!!errors.goal_amount}
                 />
+                {errors.goal_amount && <ErrorText>{errors.goal_amount}</ErrorText>}
               </FormGroup>
 
               <FormGroup>
@@ -682,7 +752,9 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                   type="date"
                   value={formData.start_date || ''}
                   onChange={(e) => handleInputChange('start_date', e.target.value)}
+                  $hasError={!!errors.start_date}
                 />
+                {errors.start_date && <ErrorText>{errors.start_date}</ErrorText>}
               </FormGroup>
 
               <FormGroup>
@@ -691,7 +763,9 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                   type="date"
                   value={formData.end_date || ''}
                   onChange={(e) => handleInputChange('end_date', e.target.value)}
+                  $hasError={!!errors.end_date}
                 />
+                {errors.end_date && <ErrorText>{errors.end_date}</ErrorText>}
               </FormGroup>
             </TwoColumnGrid>
 

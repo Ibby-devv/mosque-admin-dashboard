@@ -141,7 +141,7 @@ export default function LoginForm({ onLogin, error: authError }: LoginFormProps)
         <LoginHeader>
           <LogoImg src="/logo-navy.svg" alt="Mosque Logo" />
           <LoginTitle>Admin Dashboard</LoginTitle>
-          <LoginSubtitle>Al Madina Masjid Yagoona</LoginSubtitle>
+          <LoginSubtitle>Al Ansar Masjid Yagoona</LoginSubtitle>
         </LoginHeader>
 
         <form onSubmit={handleSubmit}>
@@ -151,7 +151,7 @@ export default function LoginForm({ onLogin, error: authError }: LoginFormProps)
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@almadinamasjid.com.au"
+              placeholder="admin@alansarmasjid.com.au"
               disabled={loading}
               required
             />

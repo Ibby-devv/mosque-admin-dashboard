@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 
 // Import components
+import ErrorBoundary from "./components/ErrorBoundary";
 import LoginForm from "./components/LoginForm";
 import Header from "./components/Header";
 import Tabs from "./components/Tabs";
@@ -366,18 +367,19 @@ export default function AdminDashboard(): React.JSX.Element {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
-  <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
+    <ErrorBoundary>
+      <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+    <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
 
-      <SaveNotification status={saveStatus} />
-      
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+        <SaveNotification status={saveStatus} />
+        
+        <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
 
-      <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div
-        style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
-      >
+        <div
+          style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
+        >
         {activeTab === "prayer" && (
           <PrayerTimesTab
             prayerTimes={prayerTimes}
@@ -432,5 +434,6 @@ export default function AdminDashboard(): React.JSX.Element {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

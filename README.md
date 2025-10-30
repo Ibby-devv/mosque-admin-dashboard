@@ -1,6 +1,58 @@
-# Getting Started with Create React App
+# Mosque Admin Dashboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An administrative dashboard for managing mosque operations including prayer times, events, campaigns, donations, and notifications.
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+- Firebase project with Firestore and Cloud Functions enabled
+
+## Setup
+
+### 1. Environment Variables
+
+Copy the example environment file and configure your Firebase credentials:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your Firebase configuration:
+
+```env
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+REACT_APP_FIREBASE_REGION=australia-southeast1
+```
+
+**Important:** Never commit `.env` files to version control. These files contain sensitive credentials.
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Run the Development Server
+
+```bash
+npm start
+```
+
+The app will open at [http://localhost:3000](http://localhost:3000)
+
+### 4. Build for Production
+
+```bash
+npm run build
+```
+
+For production builds, create a `.env.production` file with your production Firebase credentials.
 
 ## Available Scripts
 
