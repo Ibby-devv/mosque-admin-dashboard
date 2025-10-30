@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Theme } from '../constants/theme';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { UserPlus, UserMinus, Shield, AlertCircle } from 'lucide-react';
+import { UserPlus, UserMinus, Shield, AlertCircle, Mail, Lock, User } from 'lucide-react';
 import Loading from './ui/Loading';
 
 const Container = styled.div`
@@ -17,6 +17,29 @@ const PageTitle = styled.h2`
   font-weight: 600;
   color: ${Theme.colors.text.base};
   margin-bottom: ${Theme.spacing.lg};
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  gap: ${Theme.spacing.md};
+  border-bottom: 2px solid ${Theme.colors.border.base};
+  margin-bottom: ${Theme.spacing.xl};
+`;
+
+const TabButton = styled.button<{ $active?: boolean }>`
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  background: none;
+  border: none;
+  border-bottom: 2px solid ${props => props.$active ? Theme.colors.brand.navy[700] : 'transparent'};
+  color: ${props => props.$active ? Theme.colors.brand.navy[700] : Theme.colors.text.muted};
+  font-weight: ${props => props.$active ? 600 : 400};
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+
+  &:hover {
+    color: ${Theme.colors.brand.navy[700]};
+  }
 `;
 
 const Section = styled.div`
@@ -78,6 +101,16 @@ const Email = styled.strong`
 const AdminMeta = styled.small`
   color: ${Theme.colors.text.muted};
   font-size: 0.875rem;
+`;
+
+const AdminActions = styled.div`
+  display: flex;
+  gap: ${Theme.spacing.sm};
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    flex-direction: column;
+  }
 `;
 
 const RoleBadge = styled.span`
@@ -176,6 +209,46 @@ const Input = styled.input`
   }
 `;
 
+const FormGrid = styled.div`
+  display: grid;
+  gap: ${Theme.spacing.lg};
+  
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+`;
+
+const CheckboxGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${Theme.spacing.sm};
+  grid-column: 1 / -1;
+`;
+
+const Checkbox = styled.input`
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+`;
+
+const CheckboxLabel = styled.label`
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.base};
+  cursor: pointer;
+  user-select: none;
+`;
+
+const InfoBox = styled.div`
+  background: ${Theme.colors.accent.blueSoft};
+  border-left: 4px solid ${Theme.colors.brand.navy[700]};
+  padding: ${Theme.spacing.md};
+  border-radius: ${Theme.radius.md};
+  margin-top: ${Theme.spacing.lg};
+  margin-bottom: ${Theme.spacing.lg};
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.base};
+`;
+
 const Message = styled.div<{ type: 'success' | 'error' | 'info' }>`
   padding: ${Theme.spacing.md};
   border-radius: ${Theme.radius.md};
@@ -210,32 +283,29 @@ const EmptyState = styled.div`
   color: ${Theme.colors.text.muted};
 `;
 
-const Instructions = styled.div`
-  background: ${Theme.colors.surface.muted};
-  border-left: 4px solid ${Theme.colors.brand.navy[700]};
-  padding: ${Theme.spacing.lg};
-  border-radius: ${Theme.radius.md};
-  margin-bottom: ${Theme.spacing.lg};
-`;
-
-const InstructionStep = styled.p`
-  margin: ${Theme.spacing.sm} 0;
-  color: ${Theme.colors.text.muted};
-  font-size: 0.9rem;
-`;
-
 interface Admin {
   uid: string;
   email: string;
   displayName: string | null;
   role: string;
+  superAdmin?: boolean;
   createdAt: string;
   lastSignIn: string;
 }
 
 export default function AdminManagementTab(): React.JSX.Element {
   const [admins, setAdmins] = useState<Admin[]>([]);
+  const [activeTab, setActiveTab] = useState<'create' | 'promote'>('create');
+  
+  // Form fields for creating new user
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserDisplayName, setNewUserDisplayName] = useState('');
+  const [makeAdmin, setMakeAdmin] = useState(true);
+  
+  // Form field for promoting existing user
   const [newAdminEmail, setNewAdminEmail] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [message, setMessage] = useState<{
@@ -312,6 +382,70 @@ export default function AdminManagementTab(): React.JSX.Element {
     }
   };
 
+  const createNewUser = async () => {
+    // Validation
+    if (!newUserEmail.trim()) {
+      setMessage({ text: 'Please enter an email address', type: 'error' });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUserEmail.trim())) {
+      setMessage({ text: 'Please enter a valid email address', type: 'error' });
+      return;
+    }
+
+    if (!newUserPassword || newUserPassword.length < 6) {
+      setMessage({ text: 'Password must be at least 6 characters', type: 'error' });
+      return;
+    }
+
+    if (!newUserDisplayName.trim()) {
+      setMessage({ text: 'Please enter a display name', type: 'error' });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const createUserFunc = httpsCallable(functions, 'createUserAccount');
+      const result = await createUserFunc({
+        email: newUserEmail.trim(),
+        password: newUserPassword,
+        displayName: newUserDisplayName.trim(),
+        isAdmin: makeAdmin,
+        role: makeAdmin ? 'admin' : 'user',
+      });
+
+      const data = result.data as any;
+
+      setMessage({
+        text: `✅ User created successfully! ${data.resetLink ? 'Password reset link generated.' : ''}`,
+        type: 'success',
+      });
+
+      // Clear form
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserDisplayName('');
+      setMakeAdmin(true);
+
+      // Reload admins list if we created an admin
+      if (makeAdmin) {
+        await loadAdmins();
+      }
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      setMessage({
+        text: `❌ ${error.message}`,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const removeAdminRole = async (uid: string, email: string) => {
     if (!window.confirm(`Remove admin access for ${email}?`)) return;
 
@@ -338,6 +472,33 @@ export default function AdminManagementTab(): React.JSX.Element {
     }
   };
 
+  const setSuperAdminProtection = async (uid: string, email: string) => {
+    if (!window.confirm(`Set super admin protection for ${email}? This will make the account permanent and unable to be deleted.`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const setSuperAdminFunc = httpsCallable(functions, 'setSuperAdminProtection');
+      const result = await setSuperAdminFunc({ uid });
+      const data = result.data as any;
+
+      setMessage({
+        text: `✅ ${data.message}`,
+        type: 'success',
+      });
+      await loadAdmins();
+    } catch (error: any) {
+      console.error('Error setting super admin protection:', error);
+      setMessage({
+        text: `❌ ${error.message}`,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       addAdmin();
@@ -348,44 +509,131 @@ export default function AdminManagementTab(): React.JSX.Element {
     <Container>
       <PageTitle>Admin Management</PageTitle>
 
-      <Instructions>
-        <strong>Note:</strong>
-        <InstructionStep>
-          • To add a new admin, the user account must first exist in Firebase Authentication
-        </InstructionStep>
-        <InstructionStep>
-          • Create accounts at: Firebase Console → Authentication → Users → Add User
-        </InstructionStep>
-        <InstructionStep>
-          • Then use the form below to grant admin access
-        </InstructionStep>
-      </Instructions>
-
       <Section>
         <SectionTitle>
           <UserPlus size={24} />
           Add New Admin
         </SectionTitle>
-        <Form>
-          <FormRow>
-            <FormGroup>
-              <Label htmlFor="admin-email">Email Address</Label>
-              <Input
-                id="admin-email"
-                type="email"
-                placeholder="admin@almadinamasjid.org.au"
-                value={newAdminEmail}
-                onChange={(e) => setNewAdminEmail(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={loading}
-              />
-            </FormGroup>
-            <Button onClick={addAdmin} disabled={loading}>
-              <UserPlus size={20} />
-              {loading ? 'Adding...' : 'Add Admin'}
-            </Button>
-          </FormRow>
-        </Form>
+
+        <TabContainer>
+          <TabButton
+            $active={activeTab === 'create'}
+            onClick={() => setActiveTab('create')}
+          >
+            Create New User
+          </TabButton>
+          <TabButton
+            $active={activeTab === 'promote'}
+            onClick={() => setActiveTab('promote')}
+          >
+            Promote Existing User
+          </TabButton>
+        </TabContainer>
+
+        {activeTab === 'create' ? (
+          <>
+            <InfoBox>
+              Create a new Firebase user account and optionally grant admin access immediately.
+              A password reset link will be generated for the user to set their own password.
+            </InfoBox>
+
+            <Form>
+              <FormGrid>
+                <FormGroup>
+                  <Label htmlFor="new-user-email">
+                    <Mail size={16} /> Email Address
+                  </Label>
+                  <Input
+                    id="new-user-email"
+                    type="email"
+                    placeholder="user@almadinamasjid.org.au"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    disabled={loading}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label htmlFor="new-user-password">
+                    <Lock size={16} /> Temporary Password
+                  </Label>
+                  <Input
+                    id="new-user-password"
+                    type="password"
+                    placeholder="Minimum 6 characters"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label htmlFor="new-user-name">
+                    <User size={16} /> Display Name
+                  </Label>
+                  <Input
+                    id="new-user-name"
+                    type="text"
+                    placeholder="Full Name"
+                    value={newUserDisplayName}
+                    onChange={(e) => setNewUserDisplayName(e.target.value)}
+                    disabled={loading}
+                  />
+                </FormGroup>
+              </FormGrid>
+
+              <CheckboxGroup>
+                <Checkbox
+                  id="make-admin"
+                  type="checkbox"
+                  checked={makeAdmin}
+                  onChange={(e) => setMakeAdmin(e.target.checked)}
+                  disabled={loading}
+                />
+                <CheckboxLabel htmlFor="make-admin">
+                  <Shield size={16} style={{ verticalAlign: 'middle' }} /> Grant admin access
+                  immediately
+                </CheckboxLabel>
+              </CheckboxGroup>
+
+              <FormRow>
+                <Button onClick={createNewUser} disabled={loading}>
+                  <UserPlus size={20} />
+                  {loading ? 'Creating...' : 'Create User'}
+                </Button>
+              </FormRow>
+            </Form>
+          </>
+        ) : (
+          <>
+            <InfoBox>
+              Grant admin access to an existing Firebase user. The user account must already exist
+              in Firebase Authentication.
+            </InfoBox>
+
+            <Form>
+              <FormRow>
+                <FormGroup>
+                  <Label htmlFor="admin-email">Email Address</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    placeholder="admin@almadinamasjid.org.au"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={loading}
+                  />
+                </FormGroup>
+                <Button onClick={addAdmin} disabled={loading}>
+                  <UserPlus size={20} />
+                  {loading ? 'Adding...' : 'Add Admin'}
+                </Button>
+              </FormRow>
+            </Form>
+          </>
+        )}
+
         {message && (
           <Message type={message.type}>
             <AlertCircle size={20} />
@@ -422,14 +670,25 @@ export default function AdminManagementTab(): React.JSX.Element {
                     {new Date(admin.lastSignIn).toLocaleTimeString()}
                   </AdminMeta>
                 </AdminInfo>
-                <Button
-                  $variant="danger"
-                  onClick={() => removeAdminRole(admin.uid, admin.email)}
-                  disabled={loading}
-                >
-                  <UserMinus size={20} />
-                  Remove Access
-                </Button>
+                <AdminActions>
+                  {!admin.superAdmin && (
+                    <Button
+                      onClick={() => setSuperAdminProtection(admin.uid, admin.email)}
+                      disabled={loading}
+                    >
+                      <Shield size={20} />
+                      Make Permanent
+                    </Button>
+                  )}
+                  <Button
+                    $variant="danger"
+                    onClick={() => removeAdminRole(admin.uid, admin.email)}
+                    disabled={loading}
+                  >
+                    <UserMinus size={20} />
+                    Remove Access
+                  </Button>
+                </AdminActions>
               </AdminCard>
             ))}
           </AdminList>
