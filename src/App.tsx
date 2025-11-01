@@ -50,6 +50,7 @@ export default function AdminDashboard(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<string>("prayer");
   const [saveStatus, setSaveStatus] = useState<"success" | "error" | "">("");
   const [saving, setSaving] = useState<boolean>(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(false);
 
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes>({
     fajr_adhan: "5:30 AM",
@@ -145,52 +146,50 @@ export default function AdminDashboard(): React.JSX.Element {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Small delay to ensure Firebase auth is fully initialized
-    const timer = setTimeout(() => {
-      loadData();
-    }, 500);
+    // Load immediately when authenticated; avoid artificial delays
+    setInitialDataLoaded(false);
+    let isCancelled = false;
+    (async () => {
+      try {
+        await loadData();
+      } finally {
+        if (!isCancelled) setInitialDataLoaded(true);
+      }
+    })();
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCancelled = true;
+    };
   }, [isAuthenticated, loadData]);
 
   // Load donation settings with real-time updates
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Small delay to ensure auth is ready
-    const timer = setTimeout(() => {
-      const unsubscribe = onSnapshot(
-        doc(db, "donationSettings", "config"),
-        (docSnapshot) => {
-          if (docSnapshot.exists()) {
-            setDonationSettings(docSnapshot.data() as DonationSettings);
-          }
-        },
-        (error) => {
-          // Log error but don't show notification (real-time listener can fail temporarily)
-          console.error("Donation settings listener error:", error);
+    // Start real-time listener immediately after auth
+    const unsubscribe = onSnapshot(
+      doc(db, "donationSettings", "config"),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          setDonationSettings(docSnapshot.data() as DonationSettings);
+        } else {
+          setDonationSettings(null);
         }
-      );
+      },
+      (error) => {
+        // Log error but don't show notification (real-time listener can fail temporarily)
+        console.error("Donation settings listener error:", error);
+      }
+    );
 
-      // Cleanup function
-      return () => {
-        clearTimeout(timer);
-        unsubscribe();
-      };
-    }, 300);
-
-    return () => clearTimeout(timer);
+    // Cleanup function
+    return () => {
+      unsubscribe();
+    };
   }, [isAuthenticated]);
 
   // Quick splash after auth for a smooth branded entry
-  const [showSplash, setShowSplash] = useState<boolean>(false);
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      setShowSplash(true);
-      const t = setTimeout(() => setShowSplash(false), 700);
-      return () => clearTimeout(t);
-    }
-  }, [authLoading, isAuthenticated]);
+  // Removed post-auth splash to avoid double loading states/flicker
 
   const handleLogin = async (
     email: string,
@@ -332,7 +331,7 @@ export default function AdminDashboard(): React.JSX.Element {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || (isAuthenticated && !initialDataLoaded)) {
     return <Loading fullPage useLogo text="Loading dashboard..." />;
   }
 
@@ -340,10 +339,7 @@ export default function AdminDashboard(): React.JSX.Element {
     return <LoginForm onLogin={handleLogin} error={authError} />;
   }
 
-  // Show a short splash right after authentication before rendering main UI
-  if (showSplash) {
-    return <Loading fullPage useLogo text="Preparing dashboard..." />;
-  }
+  // Removed secondary splash screen ("Preparing dashboard...") to prevent flicker
 
   return (
     <ErrorBoundary>
