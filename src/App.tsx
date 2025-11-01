@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 
 // Import components
+import ErrorBoundary from "./components/ErrorBoundary";
 import LoginForm from "./components/LoginForm";
 import Header from "./components/Header";
 import Tabs from "./components/Tabs";
@@ -49,6 +50,7 @@ export default function AdminDashboard(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<string>("prayer");
   const [saveStatus, setSaveStatus] = useState<"success" | "error" | "">("");
   const [saving, setSaving] = useState<boolean>(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(false);
 
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes>({
     fajr_adhan: "5:30 AM",
@@ -104,16 +106,11 @@ export default function AdminDashboard(): React.JSX.Element {
   const loadData = useCallback(async (): Promise<void> => {
     // Double-check authentication
     if (!isAuthenticated) {
-      console.log("⏳ Skipping loadData - not authenticated yet");
       return;
     }
 
     try {
-      console.log("📖 Loading data from Firebase...");
-
-      console.log("  → Loading prayer times...");
       const prayerDoc = await getDoc(doc(db, "prayerTimes", "current"));
-      console.log("  ✅ Prayer times fetched:", prayerDoc.exists());
 
       if (prayerDoc.exists()) {
         const data = prayerDoc.data() as PrayerTimes;
@@ -130,81 +127,69 @@ export default function AdminDashboard(): React.JSX.Element {
         setPrayerTimes(data);
       }
 
-      console.log("  → Loading jumuah times (new structure)...");
       const jumuahDoc = await getDoc(doc(db, "jumuahTimes", "current"));
-      console.log("  ✅ Jumuah times fetched:", jumuahDoc.exists());
 
       if (jumuahDoc.exists()) {
         setJumuahTimes(jumuahDoc.data() as JumuahData);
       }
 
-      console.log("  → Loading mosque settings...");
       const settingsDoc = await getDoc(doc(db, "mosqueSettings", "info"));
-      console.log("  ✅ Mosque settings fetched:", settingsDoc.exists());
 
       if (settingsDoc.exists()) {
         setMosqueSettings(settingsDoc.data() as MosqueSettings);
       }
-
-      console.log("✅ Data loaded successfully");
     } catch (error) {
-      console.error("❌ Error loading data (may be temporary):", error);
+      console.error("Error loading data:", error);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Small delay to ensure Firebase auth is fully initialized
-    const timer = setTimeout(() => {
-      loadData();
-    }, 500);
+    // Load immediately when authenticated; avoid artificial delays
+    setInitialDataLoaded(false);
+    let isCancelled = false;
+    (async () => {
+      try {
+        await loadData();
+      } finally {
+        if (!isCancelled) setInitialDataLoaded(true);
+      }
+    })();
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCancelled = true;
+    };
   }, [isAuthenticated, loadData]);
 
   // Load donation settings with real-time updates
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Small delay to ensure auth is ready
-    const timer = setTimeout(() => {
-      const unsubscribe = onSnapshot(
-        doc(db, "donationSettings", "config"),
-        (docSnapshot) => {
-          if (docSnapshot.exists()) {
-            setDonationSettings(docSnapshot.data() as DonationSettings);
-            console.log("✅ Donation settings loaded");
-          }
-        },
-        (error) => {
-          // Log error but don't show notification (real-time listener can fail temporarily)
-          console.warn(
-            "⚠️ Donation settings listener error (temporary):",
-            error.message
-          );
+    // Start real-time listener immediately after auth
+    const unsubscribe = onSnapshot(
+      doc(db, "donationSettings", "config"),
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          setDonationSettings(docSnapshot.data() as DonationSettings);
+        } else {
+          setDonationSettings(null);
         }
-      );
+      },
+      (error) => {
+        // Log error but don't show notification (real-time listener can fail temporarily)
+        console.error("Donation settings listener error:", error);
+      }
+    );
 
-      // Cleanup function
-      return () => {
-        clearTimeout(timer);
-        unsubscribe();
-      };
-    }, 300);
-
-    return () => clearTimeout(timer);
+    // Cleanup function
+    return () => {
+      unsubscribe();
+    };
   }, [isAuthenticated]);
 
   // Quick splash after auth for a smooth branded entry
-  const [showSplash, setShowSplash] = useState<boolean>(false);
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      setShowSplash(true);
-      const t = setTimeout(() => setShowSplash(false), 700);
-      return () => clearTimeout(t);
-    }
-  }, [authLoading, isAuthenticated]);
+  // Removed post-auth splash to avoid double loading states/flicker
 
   const handleLogin = async (
     email: string,
@@ -278,10 +263,9 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, "prayerTimes", "current"), updatedPrayerTimes);
       setPrayerTimes(updatedPrayerTimes);
-      console.log("✅ Prayer times saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving prayer times:", error);
+      console.error("Error saving prayer times:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -292,8 +276,6 @@ export default function AdminDashboard(): React.JSX.Element {
     setSaving(true);
     try {
       if (!jumuahTimes) {
-        // Nothing to save yet (user hasn't made changes and no data loaded)
-        console.warn("ℹ️ No Jumuah data to save.");
         setSaving(false);
         return;
       }
@@ -304,10 +286,9 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, "jumuahTimes", "current"), updatedJumuah);
       setJumuahTimes(updatedJumuah);
-      console.log("✅ Jumuah times saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving Jumuah times:", error);
+      console.error("Error saving Jumuah times:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -323,10 +304,9 @@ export default function AdminDashboard(): React.JSX.Element {
       };
       await setDoc(doc(db, "mosqueSettings", "info"), updatedSettings);
       setMosqueSettings(updatedSettings);
-      console.log("✅ Mosque settings saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving mosque settings:", error);
+      console.error("Error saving mosque settings:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
@@ -342,17 +322,16 @@ export default function AdminDashboard(): React.JSX.Element {
         ...donationSettings,
         updated_at: serverTimestamp(),
       });
-      console.log("✅ Donation settings saved to Firebase");
       showSaveStatus(true);
     } catch (error) {
-      console.error("❌ Error saving donation settings:", error);
+      console.error("Error saving donation settings:", error);
       showSaveStatus(false);
     } finally {
       setSaving(false);
     }
   };
 
-  if (authLoading) {
+  if (authLoading || (isAuthenticated && !initialDataLoaded)) {
     return <Loading fullPage useLogo text="Loading dashboard..." />;
   }
 
@@ -360,24 +339,22 @@ export default function AdminDashboard(): React.JSX.Element {
     return <LoginForm onLogin={handleLogin} error={authError} />;
   }
 
-  // Show a short splash right after authentication before rendering main UI
-  if (showSplash) {
-    return <Loading fullPage useLogo text="Preparing dashboard..." />;
-  }
+  // Removed secondary splash screen ("Preparing dashboard...") to prevent flicker
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
-  <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
+    <ErrorBoundary>
+      <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+    <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
 
-      <SaveNotification status={saveStatus} />
-      
-      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+        <SaveNotification status={saveStatus} />
+        
+        <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
 
-      <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div
-        style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
-      >
+        <div
+          style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
+        >
         {activeTab === "prayer" && (
           <PrayerTimesTab
             prayerTimes={prayerTimes}
@@ -432,5 +409,6 @@ export default function AdminDashboard(): React.JSX.Element {
         )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 }
