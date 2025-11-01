@@ -115,6 +115,25 @@ const Input = styled.input<{ $hasError?: boolean }>`
   }
 `;
 
+const Select = styled.select<{ $hasError?: boolean }>`
+  width: 100%;
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
+  border: 1px solid ${props => props.$hasError ? Theme.colors.status.error : Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+  background: ${Theme.colors.surface.card};
+  cursor: pointer;
+
+  &:focus {
+    border-color: ${props => props.$hasError ? Theme.colors.status.error : Theme.colors.brand.navy[700]};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? Theme.colors.status.errorLight : Theme.colors.accent.blueSoft};
+  }
+`;
+
 const TextArea = styled.textarea<{ $hasError?: boolean }>`
   width: 100%;
   padding: ${Theme.spacing.md};
@@ -489,7 +508,7 @@ export default function NotificationsTab({
     title: '',
     body: '',
     data: {
-      type: 'announcement',
+      type: 'general',
     },
   });
 
@@ -555,6 +574,21 @@ export default function NotificationsTab({
     }
 
     // Clear send result when user starts typing again
+    if (sendResult) {
+      setSendResult(null);
+    }
+  };
+
+  const handleTypeChange = (type: string) => {
+    setFormData(prev => ({
+      ...prev,
+      data: {
+        ...prev.data,
+        type,
+      },
+    }));
+
+    // Clear send result
     if (sendResult) {
       setSendResult(null);
     }
@@ -650,7 +684,7 @@ export default function NotificationsTab({
     setFormData({
       title: '',
       body: '',
-      data: { type: 'announcement' },
+      data: { type: 'general' },
     });
     setErrors({});
     setSendResult(null);
@@ -802,6 +836,24 @@ export default function NotificationsTab({
         )}
 
         <Form>
+          {/* Notification Type Field */}
+          <FormGroup>
+            <Label>Notification Type *</Label>
+            <Select
+              value={formData.data?.type || 'general'}
+              onChange={(e) => handleTypeChange(e.target.value)}
+            >
+              <option value="general">📢 General Announcement</option>
+              <option value="prayer">🕌 Prayer Times</option>
+              <option value="event">🎉 Event</option>
+              <option value="campaign">💚 Donation Campaign</option>
+              <option value="urgent">⚠️ Urgent Alert</option>
+            </Select>
+            <HelpText>
+              Choose the notification type. This determines the color and styling in the mobile app.
+            </HelpText>
+          </FormGroup>
+
           {/* Title Field */}
           <FormGroup>
             <Label>
