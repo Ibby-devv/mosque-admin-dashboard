@@ -10,6 +10,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, orderBy, limit, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import Card from './ui/Card';
+import ImageUpload from './ImageUpload';
 import { Theme, media } from '../constants/theme';
 
 // ============================================================================
@@ -19,6 +20,7 @@ import { Theme, media } from '../constants/theme';
 interface NotificationFormData {
   title: string;
   body: string;
+  image_url?: string;
   data?: {
     type?: string;
     link?: string;
@@ -507,6 +509,7 @@ export default function NotificationsTab({
   const [formData, setFormData] = useState<NotificationFormData>({
     title: '',
     body: '',
+    image_url: '',
     data: {
       type: 'general',
     },
@@ -643,6 +646,7 @@ export default function NotificationsTab({
       const result = await sendCustomNotification({
         title: formData.title.trim(),
         body: formData.body.trim(),
+        image_url: formData.image_url,
         data: formData.data,
       });
 
@@ -658,6 +662,7 @@ export default function NotificationsTab({
       setFormData({
         title: '',
         body: '',
+        image_url: '',
         data: { type: 'announcement' },
       });
 
@@ -684,6 +689,7 @@ export default function NotificationsTab({
     setFormData({
       title: '',
       body: '',
+      image_url: '',
       data: { type: 'general' },
     });
     setErrors({});
@@ -883,8 +889,8 @@ export default function NotificationsTab({
           <FormGroup>
             <Label>
               Message *{' '}
-              <CharacterCount 
-                $isNearLimit={bodyNearLimit} 
+              <CharacterCount
+                $isNearLimit={bodyNearLimit}
                 $isOverLimit={bodyOverLimit}
               >
                 ({formData.body.length}/{BODY_LIMIT})
@@ -900,6 +906,21 @@ export default function NotificationsTab({
             {errors.body && <ErrorMessage>{errors.body}</ErrorMessage>}
             <HelpText>
               Provide clear details about what users need to know.
+            </HelpText>
+          </FormGroup>
+
+          {/* Image Upload */}
+          <FormGroup>
+            <Label>Notification Image (Optional)</Label>
+            <ImageUpload
+              currentImageUrl={formData.image_url}
+              onImageUpload={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+              onImageDelete={() => setFormData(prev => ({ ...prev, image_url: '' }))}
+              storagePath={`notifications/${Date.now()}`}
+              disabled={sending}
+            />
+            <HelpText>
+              Add an image to display in the notification. Images will show as Big Picture when users expand the notification.
             </HelpText>
           </FormGroup>
 
