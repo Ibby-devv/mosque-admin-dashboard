@@ -4,6 +4,7 @@ import { Theme, media } from '../constants/theme';
 import Card from './ui/Card';
 import { Save, Plus, Edit2, Trash2, Calendar, MapPin, Users, X, Tag, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import TimeInput from './TimeInput';
+import ImageUpload from './ImageUpload';
 import { 
   collection, 
   addDoc, 
@@ -1195,12 +1196,13 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
             </FormGroup>
 
             <FormGroup>
-              <Label>Image URL (Optional)</Label>
-              <Input
-                type="text"
-                value={formData.image_url || ''}
-                onChange={(e) => handleInputChange('image_url', e.target.value)}
-                placeholder="https://example.com/image.jpg"
+              <Label>Event Image (Optional)</Label>
+              <ImageUpload
+                currentImageUrl={formData.image_url}
+                onImageUpload={(url) => handleInputChange('image_url', url)}
+                onImageDelete={() => handleInputChange('image_url', '')}
+                storagePath={editingEvent ? `events/${editingEvent.id}` : `events/temp-${Date.now()}`}
+                disabled={saving}
               />
             </FormGroup>
 

@@ -8,6 +8,7 @@ import styled from 'styled-components';
 import { Save, Plus, Edit2, Trash2, X, Calendar } from 'lucide-react';
 import Card from './ui/Card';
 import Pagination from './ui/Pagination';
+import ImageUpload from './ImageUpload';
 import { Theme } from '../constants/theme';
 import {
   collection,
@@ -347,6 +348,14 @@ const CheckboxLabel = styled.label`
   cursor: pointer;
 `;
 
+const CampaignImage = styled.img`
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 1rem;
@@ -618,6 +627,10 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                   {campaign.status.toUpperCase()}
                 </StatusBadge>
 
+                {campaign.image_url && (
+                  <CampaignImage src={campaign.image_url} alt={campaign.title} />
+                )}
+
                 <CampaignTitle>{campaign.title}</CampaignTitle>
 
                 <CampaignDescription>{campaign.description}</CampaignDescription>
@@ -644,12 +657,6 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                   <Calendar size={16} />
                   {formatDate(campaign.start_date)} - {formatDate(campaign.end_date)}
                 </CampaignDetail>
-
-                {campaign.image_url && (
-                  <CampaignDetail>
-                    🖼️ Image configured
-                  </CampaignDetail>
-                )}
 
                 <CampaignDetail>
                   {campaign.is_visible_in_app ? '✅ Visible in app' : '❌ Hidden from app'}
@@ -770,12 +777,13 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
             </TwoColumnGrid>
 
             <FormGroup>
-              <Label>Image URL (Optional)</Label>
-              <Input
-                type="text"
-                value={formData.image_url || ''}
-                onChange={(e) => handleInputChange('image_url', e.target.value)}
-                placeholder="https://example.com/image.jpg"
+              <Label>Campaign Image (Optional)</Label>
+              <ImageUpload
+                currentImageUrl={formData.image_url}
+                onImageUpload={(url) => handleInputChange('image_url', url)}
+                onImageDelete={() => handleInputChange('image_url', '')}
+                storagePath={editingCampaign ? `campaigns/${editingCampaign.id}` : `campaigns/temp-${Date.now()}`}
+                disabled={saving}
               />
             </FormGroup>
 

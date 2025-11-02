@@ -2,6 +2,7 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getFunctions, Functions } from 'firebase/functions';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -37,4 +38,5 @@ const app: FirebaseApp = initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
 const functions: Functions = getFunctions(app, process.env.REACT_APP_FIREBASE_REGION || 'australia-southeast1');
-export { auth, db, functions };
+const storage: FirebaseStorage = getStorage(app);
+export { auth, db, functions, storage };
