@@ -20,30 +20,6 @@ interface UseFirebaseAuthReturn {
   userRoles: RoleId[];
   permissions: Permission[];
   isSuperAdmin: boolean;
-  hasLegacyClaims: boolean; // True if using old admin:true format
-}
-
-/**
- * Migrate legacy claims to new role system
- */
-function migrateLegacyClaims(claims: any): RoleId[] {
-  // If user has new roles system, use it
-  if (claims.roles && Array.isArray(claims.roles)) {
-    return claims.roles as RoleId[];
-  }
-
-  // If user has old superAdmin claim, make them Super Admin
-  if (claims.superAdmin === true) {
-    return [RoleId.SUPER_ADMIN];
-  }
-
-  // If user has old admin claim, make them Admin
-  if (claims.admin === true) {
-    return [RoleId.ADMIN];
-  }
-
-  // No roles
-  return [];
 }
 
 export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
@@ -53,7 +29,6 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
   const [userRoles, setUserRoles] = useState<RoleId[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
-  const [hasLegacyClaims, setHasLegacyClaims] = useState<boolean>(false);
 
   // Check authentication state and extract roles/permissions
   useEffect(() => {
@@ -66,13 +41,10 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
           
           console.log('User claims:', claims);
 
-          // Extract roles (with legacy support)
-          const roles = migrateLegacyClaims(claims);
-          
-          // Check if user has legacy claims (admin:true but no roles array)
-          const isLegacy = (claims.admin === true || claims.superAdmin === true) && 
-                           (!claims.roles || !Array.isArray(claims.roles) || claims.roles.length === 0);
-          setHasLegacyClaims(isLegacy);
+          // Extract roles from claims
+          const roles = (claims.roles && Array.isArray(claims.roles)) 
+            ? claims.roles as RoleId[] 
+            : [];
           
           // Extract permissions (calculate if not in claims)
           let userPermissions: Permission[];
@@ -93,10 +65,6 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
             setUserRoles([]);
             setPermissions([]);
             setIsSuperAdmin(false);
-  setHasLegacyClaims(false);
-  setHasLegacyClaims(false);
-          setHasLegacyClaims(false);
-          setHasLegacyClaims(false);
             setError('Unauthorized: No dashboard access');
             setLoading(false);
             return;
@@ -139,9 +107,11 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
       // Verify user has access (roles or permissions)
       const idTokenResult = await userCredential.user.getIdTokenResult();
       const claims = idTokenResult.claims;
-      const roles = migrateLegacyClaims(claims);
+      const roles = (claims.roles && Array.isArray(claims.roles)) 
+        ? claims.roles as RoleId[] 
+        : [];
       
-      if (roles.length === 0 && !claims.admin) {
+      if (roles.length === 0) {
         await signOut(auth);
         const errorMessage = 'Unauthorized: No dashboard access assigned';
         setError(errorMessage);
@@ -195,6 +165,5 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
     userRoles,
     permissions,
     isSuperAdmin,
-  hasLegacyClaims,
   };
 };

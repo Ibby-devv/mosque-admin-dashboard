@@ -36,9 +36,6 @@ import {
   DonationSettings,
 } from "./types";
 
-// Import permissions
-import { Permission } from "./constants/roles";
-
 const db = getFirestore();
 
 export default function AdminDashboard(): React.JSX.Element {
@@ -51,7 +48,6 @@ export default function AdminDashboard(): React.JSX.Element {
     logout,
     userRoles,
     permissions,
-    isSuperAdmin,
   } = useFirebaseAuth();
   const { toasts, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("prayer");

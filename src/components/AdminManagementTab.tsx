@@ -477,7 +477,7 @@ const InfoBox = styled.div`
 `;
 
 export default function AdminManagementTabNew(): React.JSX.Element {
-  const { hasLegacyClaims, isSuperAdmin } = useFirebaseAuth();
+  const { isSuperAdmin } = useFirebaseAuth();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [activeTab, setActiveTab] = useState<'create' | 'assign' | 'manage'>('create');
   
@@ -743,32 +743,6 @@ export default function AdminManagementTabNew(): React.JSX.Element {
     } catch {}
   };
 
-  const migrateMyAccount = async () => {
-    if (!window.confirm('Migrate your account to the new role system? You will need to log out and log back in after migration.')) return;
-
-    setLoading(true);
-    setMessage(null);
-
-    try {
-      const migrateFunc = httpsCallable(functions, 'migrateMyAccountToNewSystem');
-      const result = await migrateFunc();
-      const data = result.data as any;
-
-      setMessage({
-        text: `✅ ${data.message}. ${data.note || ''}`,
-        type: 'success',
-      });
-    } catch (error: any) {
-      console.error('Error migrating account:', error);
-      setMessage({
-        text: `❌ ${error.message}`,
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const updateUserDisplayName = async () => {
     if (!editingUser) return;
 
@@ -891,18 +865,6 @@ export default function AdminManagementTabNew(): React.JSX.Element {
               Cancel
             </Button>
           </div>
-        </InfoBox>
-      )}
-
-      {hasLegacyClaims && (
-        <InfoBox style={{ marginBottom: Theme.spacing.xl, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <strong>Legacy Account Detected:</strong> You're using an old admin account format. 
-            Migrate to the new role system for full functionality.
-          </div>
-          <Button onClick={migrateMyAccount} disabled={loading} style={{ marginLeft: Theme.spacing.md }}>
-            Migrate My Account
-          </Button>
         </InfoBox>
       )}
 
