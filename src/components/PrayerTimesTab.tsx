@@ -5,6 +5,8 @@ import { PrayerTimesTabProps } from '../types';
 import TimeInput from './TimeInput';
 import { Theme, media } from '../constants/theme';
 import Card from './ui/Card';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 // Using shared Card component from ./ui/Card for consistent styling across tabs
 
@@ -324,6 +326,9 @@ const APIStatusBox = styled.div<{ $success: boolean }>`
 `;
 
 export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, mosqueSettings }: PrayerTimesTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission(Permission.EDIT_PRAYER_TIMES);
+  
   const prayers: string[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
   const [fetchingPrayerTimes, setFetchingPrayerTimes] = useState(false);
   const [fetchStatus, setFetchStatus] = useState<{ success: boolean; message: string } | null>(null);
@@ -631,13 +636,13 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       <ButtonContainer>
         <RefreshButton 
           onClick={fetchAllPrayerTimes} 
-          disabled={fetchingPrayerTimes || !hasLocationSettings}
+          disabled={fetchingPrayerTimes || !hasLocationSettings || !canEdit}
         >
           <RefreshCw size={20} />
           {fetchingPrayerTimes ? 'Fetching...' : 'Refresh Prayer Times Now'}
         </RefreshButton>
         
-        <SaveButton onClick={handleSave} disabled={saving} $dirty={isDirty}>
+        <SaveButton onClick={handleSave} disabled={saving || !canEdit} $dirty={isDirty}>
           <Save size={20} />
           {saving ? 'Saving...' : 'Save Prayer Times'}
         </SaveButton>

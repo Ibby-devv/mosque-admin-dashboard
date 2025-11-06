@@ -1,5 +1,42 @@
 // Firebase Data Types
 
+// ============================================================================
+// ROLE & PERMISSION TYPES
+// ============================================================================
+
+import { RoleId, Permission } from '../constants/roles';
+
+/**
+ * User with roles and permissions
+ */
+export interface UserWithRoles {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  roles: RoleId[];
+  permissions: Permission[];
+  isSuperAdmin: boolean;
+  createdAt: string;
+  lastSignIn: string;
+  photoURL?: string | null;
+}
+
+/**
+ * Firebase Auth custom claims structure
+ */
+export interface CustomClaims {
+  roles?: RoleId[];
+  permissions?: Permission[];
+  isSuperAdmin?: boolean;
+  admin?: boolean; // Legacy support
+  role?: string; // Legacy support
+  superAdmin?: boolean; // Legacy support
+}
+
+// ============================================================================
+// FIREBASE DATA TYPES
+// ============================================================================
+
 export interface PrayerTimes {
   fajr_adhan: string;
   fajr_iqama: string;

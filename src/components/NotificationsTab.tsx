@@ -12,6 +12,8 @@ import { db } from '../firebase';
 import Card from './ui/Card';
 import ImageUpload from './ImageUpload';
 import { Theme, media } from '../constants/theme';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 // ============================================================================
 // TYPES
@@ -506,6 +508,9 @@ export default function NotificationsTab({
   saving,
   onSaveStatusChange,
 }: NotificationsTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canSend = hasPermission(Permission.SEND_NOTIFICATIONS);
+  
   const [formData, setFormData] = useState<NotificationFormData>({
     title: '',
     body: '',
@@ -966,7 +971,7 @@ export default function NotificationsTab({
             <Button
               $variant="primary"
               onClick={handleSendNotification}
-              disabled={sending || !formData.title.trim() || !formData.body.trim()}
+              disabled={sending || !formData.title.trim() || !formData.body.trim() || !canSend}
               type="button"
             >
               {sending ? (

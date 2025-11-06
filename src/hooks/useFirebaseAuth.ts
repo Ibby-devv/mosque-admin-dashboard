@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { User, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
+import { RoleId, Permission } from '../constants/roles';
+import { getPermissionsFromRoles } from '../utils/permissions';
 
 interface LoginResult {
   success: boolean;
@@ -14,40 +16,112 @@ interface UseFirebaseAuthReturn {
   login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<LoginResult>;
   isAuthenticated: boolean;
-  isAdmin: boolean;
+  hasAccess: boolean; // Has any roles assigned
+  userRoles: RoleId[];
+  permissions: Permission[];
+  isSuperAdmin: boolean;
+  hasLegacyClaims: boolean; // True if using old admin:true format
+}
+
+/**
+ * Migrate legacy claims to new role system
+ */
+function migrateLegacyClaims(claims: any): RoleId[] {
+  // If user has new roles system, use it
+  if (claims.roles && Array.isArray(claims.roles)) {
+    return claims.roles as RoleId[];
+  }
+
+  // If user has old superAdmin claim, make them Super Admin
+  if (claims.superAdmin === true) {
+    return [RoleId.SUPER_ADMIN];
+  }
+
+  // If user has old admin claim, make them Admin
+  if (claims.admin === true) {
+    return [RoleId.ADMIN];
+  }
+
+  // No roles
+  return [];
 }
 
 export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [userRoles, setUserRoles] = useState<RoleId[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
+  const [hasLegacyClaims, setHasLegacyClaims] = useState<boolean>(false);
 
-  // Check authentication state and admin claim
+  // Check authentication state and extract roles/permissions
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Check for admin custom claim
-        const idTokenResult = await currentUser.getIdTokenResult(true);
-        const hasAdminClaim = !!idTokenResult.claims.admin;
-        
-        console.log('User claims:', idTokenResult.claims);
-        
-        if (!hasAdminClaim) {
-          console.warn('⛔ Non-admin user attempted dashboard access:', currentUser.email);
+        try {
+          // Get fresh ID token with claims
+          const idTokenResult = await currentUser.getIdTokenResult(true);
+          const claims = idTokenResult.claims;
+          
+          console.log('User claims:', claims);
+
+          // Extract roles (with legacy support)
+          const roles = migrateLegacyClaims(claims);
+          
+          // Check if user has legacy claims (admin:true but no roles array)
+          const isLegacy = (claims.admin === true || claims.superAdmin === true) && 
+                           (!claims.roles || !Array.isArray(claims.roles) || claims.roles.length === 0);
+          setHasLegacyClaims(isLegacy);
+          
+          // Extract permissions (calculate if not in claims)
+          let userPermissions: Permission[];
+          if (claims.permissions && Array.isArray(claims.permissions)) {
+            userPermissions = claims.permissions as Permission[];
+          } else {
+            // Calculate permissions from roles
+            userPermissions = getPermissionsFromRoles(roles);
+          }
+
+          // Check if user has any access
+          const hasAnyAccess = roles.length > 0 || userPermissions.length > 0;
+          
+          if (!hasAnyAccess) {
+            console.warn('⛔ User has no roles assigned:', currentUser.email);
+            await signOut(auth);
+            setUser(null);
+            setUserRoles([]);
+            setPermissions([]);
+            setIsSuperAdmin(false);
+  setHasLegacyClaims(false);
+  setHasLegacyClaims(false);
+          setHasLegacyClaims(false);
+          setHasLegacyClaims(false);
+            setError('Unauthorized: No dashboard access');
+            setLoading(false);
+            return;
+          }
+          
+          // Set user data
+          setUser(currentUser);
+          setUserRoles(roles);
+          setPermissions(userPermissions);
+          setIsSuperAdmin(claims.isSuperAdmin === true || roles.includes(RoleId.SUPER_ADMIN));
+          setError('');
+        } catch (err) {
+          console.error('Error getting user claims:', err);
+          setError('Failed to load user permissions');
           await signOut(auth);
           setUser(null);
-          setIsAdmin(false);
-          setError('Unauthorized: Admin access required');
-          setLoading(false);
-          return;
+          setUserRoles([]);
+          setPermissions([]);
+          setIsSuperAdmin(false);
         }
-        
-        setUser(currentUser);
-        setIsAdmin(true);
       } else {
         setUser(null);
-        setIsAdmin(false);
+        setUserRoles([]);
+        setPermissions([]);
+        setIsSuperAdmin(false);
       }
       setLoading(false);
     });
@@ -62,11 +136,14 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Verify admin claim immediately after login
+      // Verify user has access (roles or permissions)
       const idTokenResult = await userCredential.user.getIdTokenResult();
-      if (!idTokenResult.claims.admin) {
+      const claims = idTokenResult.claims;
+      const roles = migrateLegacyClaims(claims);
+      
+      if (roles.length === 0 && !claims.admin) {
         await signOut(auth);
-        const errorMessage = 'Unauthorized: Admin access required';
+        const errorMessage = 'Unauthorized: No dashboard access assigned';
         setError(errorMessage);
         return { success: false, error: errorMessage };
       }
@@ -97,6 +174,9 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
   const logout = async (): Promise<LoginResult> => {
     try {
       await signOut(auth);
+      setUserRoles([]);
+      setPermissions([]);
+      setIsSuperAdmin(false);
       return { success: true };
     } catch (err: any) {
       console.error('Logout error:', err);
@@ -111,6 +191,10 @@ export const useFirebaseAuth = (): UseFirebaseAuthReturn => {
     login,
     logout,
     isAuthenticated: !!user,
-    isAdmin
+    hasAccess: userRoles.length > 0,
+    userRoles,
+    permissions,
+    isSuperAdmin,
+  hasLegacyClaims,
   };
 };

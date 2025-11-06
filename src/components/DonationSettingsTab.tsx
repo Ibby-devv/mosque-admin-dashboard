@@ -9,6 +9,8 @@ import { Save, Plus, Trash2, Edit2, X } from 'lucide-react';
 import { DonationSettings, DonationType } from '../types';
 import Card from './ui/Card';
 import { Theme, media } from '../constants/theme';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -302,6 +304,9 @@ export default function DonationSettingsTab({
   onSave,
   saving,
 }: DonationSettingsTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission(Permission.EDIT_DONATION_SETTINGS);
+  
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [editingType, setEditingType] = useState<DonationType | null>(null);
   const [newTypeName, setNewTypeName] = useState('');
@@ -413,7 +418,7 @@ export default function DonationSettingsTab({
     <Container>
       <Header>
         <Title>Donation Settings</Title>
-        <SaveButton onClick={onSave} disabled={saving}>
+        <SaveButton onClick={onSave} disabled={saving || !canEdit}>
           <Save size={20} />
           {saving ? 'Saving...' : 'Save Settings'}
         </SaveButton>
@@ -449,7 +454,7 @@ export default function DonationSettingsTab({
         </List>
 
         <div style={{ marginTop: '1rem' }}>
-          <AddButton onClick={() => setShowTypeModal(true)}>
+          <AddButton onClick={() => setShowTypeModal(true)} disabled={!canEdit}>
             <Plus size={20} />
             Add Donation Type
           </AddButton>

@@ -3,6 +3,8 @@ import styled from 'styled-components';
 import { Clock, Calendar, DollarSign, Bell, Settings, CalendarDays, Shield } from 'lucide-react';
 import { TabsProps } from '../types';
 import { Theme, media } from '../constants/theme';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 const TabContainer = styled.div`
   background: ${Theme.colors.surface.base};
@@ -87,23 +89,67 @@ interface TabItem {
   id: string;
   label: string;
   icon: React.ReactNode;
+  requiredPermission?: Permission; // Permission required to see this tab
 }
 
 export default function Tabs({ activeTab, onTabChange }: TabsProps): React.JSX.Element {
-  const tabs: TabItem[] = [
-    { id: 'prayer', label: 'Prayer Times', icon: <Clock size={18} /> },
-    { id: 'jumuah', label: 'Jumuah', icon: <CalendarDays size={18} /> },
-    { id: 'events', label: 'Events', icon: <Calendar size={18} /> },
-    { id: 'donations', label: 'Donations', icon: <DollarSign size={18} /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
-    { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
-    { id: 'admin', label: 'Admin', icon: <Shield size={18} /> }
+  const permissions = usePermissions();
+
+  const allTabs: TabItem[] = [
+    { 
+      id: 'prayer', 
+      label: 'Prayer Times', 
+      icon: <Clock size={18} />,
+      requiredPermission: Permission.VIEW_PRAYER_TIMES
+    },
+    { 
+      id: 'jumuah', 
+      label: 'Jumuah', 
+      icon: <CalendarDays size={18} />,
+      requiredPermission: Permission.VIEW_JUMUAH_TIMES
+    },
+    { 
+      id: 'events', 
+      label: 'Events', 
+      icon: <Calendar size={18} />,
+      requiredPermission: Permission.VIEW_EVENTS
+    },
+    { 
+      id: 'donations', 
+      label: 'Donations', 
+      icon: <DollarSign size={18} />,
+      requiredPermission: Permission.VIEW_DONATIONS
+    },
+    { 
+      id: 'notifications', 
+      label: 'Notifications', 
+      icon: <Bell size={18} />,
+      requiredPermission: Permission.SEND_NOTIFICATIONS
+    },
+    { 
+      id: 'settings', 
+      label: 'Settings', 
+      icon: <Settings size={18} />,
+      requiredPermission: Permission.VIEW_MOSQUE_SETTINGS
+    },
+    { 
+      id: 'admin', 
+      label: 'Admin', 
+      icon: <Shield size={18} />,
+      requiredPermission: Permission.VIEW_USERS
+    }
   ];
+
+  // Filter tabs based on user permissions
+  const visibleTabs = allTabs.filter(tab => {
+    if (!tab.requiredPermission) return true;
+    return permissions.hasPermission(tab.requiredPermission);
+  });
 
   return (
     <TabContainer>
       <TabsWrapper>
-        {tabs.map(tab => (
+        {visibleTabs.map(tab => (
           <Tab
             key={tab.id}
             $active={activeTab === tab.id}

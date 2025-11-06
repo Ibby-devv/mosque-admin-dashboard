@@ -3,8 +3,12 @@ import styled from 'styled-components';
 import { Theme } from '../constants/theme';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { UserPlus, UserMinus, Shield, AlertCircle, Mail, Lock, User } from 'lucide-react';
+import { UserPlus, UserMinus, Shield, AlertCircle, Mail, Lock, User, Info, Edit2, Search, X } from 'lucide-react';
 import Loading from './ui/Loading';
+import { RoleId, ROLES, getRolesByCategory, PERMISSION_LABELS } from '../constants/roles';
+import { getPermissionsFromRoles, isValidRoleCombination } from '../utils/permissions';
+import { UserWithRoles } from '../types';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 
 const Container = styled.div`
   padding: ${Theme.spacing.xl};
@@ -60,120 +64,18 @@ const SectionTitle = styled.h3`
   gap: ${Theme.spacing.sm};
 `;
 
-const AdminList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${Theme.spacing.md};
-`;
-
-const AdminCard = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: ${Theme.spacing.lg};
-  background: ${Theme.colors.surface.muted};
-  border-radius: ${Theme.radius.md};
-  border: 1px solid ${Theme.colors.border.base};
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: ${Theme.spacing.md};
-  }
-`;
-
-const AdminInfo = styled.div`
-  flex: 1;
-`;
-
-const AdminEmail = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${Theme.spacing.sm};
-  margin-bottom: ${Theme.spacing.xs};
-`;
-
-const Email = styled.strong`
-  font-size: 1rem;
-  color: ${Theme.colors.text.base};
-`;
-
-const AdminMeta = styled.small`
-  color: ${Theme.colors.text.muted};
-  font-size: 0.875rem;
-`;
-
-const AdminActions = styled.div`
-  display: flex;
-  gap: ${Theme.spacing.sm};
-  
-  @media (max-width: 768px) {
-    width: 100%;
-    flex-direction: column;
-  }
-`;
-
-const RoleBadge = styled.span`
-  display: inline-block;
-  padding: ${Theme.spacing.xs} ${Theme.spacing.sm};
-  background: ${Theme.colors.brand.navy[700]};
-  color: white;
-  border-radius: ${Theme.radius.sm};
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-left: ${Theme.spacing.sm};
-`;
-
-const Button = styled.button<{ $variant?: 'danger' | 'primary' }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${Theme.spacing.sm};
-  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
-  min-height: 48px;
-  border-radius: ${Theme.radius.md};
-  font-weight: 600;
-  font-size: ${Theme.typography.body};
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: ${(props) =>
-    props.$variant === 'danger' ? Theme.colors.status.error : Theme.colors.brand.navy[700]};
-  color: white;
-
-  &:hover {
-    background: ${(props) =>
-      props.$variant === 'danger' ? Theme.colors.status.errorDark : Theme.colors.brand.navy[600]};
-    transform: translateY(-1px);
-    box-shadow: ${Theme.shadow.soft};
-  }
-
-  &:disabled {
-    background: ${Theme.colors.border.medium};
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  @media (max-width: 768px) {
-    width: 100%;
-  }
-`;
-
 const Form = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${Theme.spacing.lg};
 `;
 
-const FormRow = styled.div`
+const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: ${Theme.spacing.md};
-  align-items: end;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+  gap: ${Theme.spacing.lg};
+  
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
   }
 `;
 
@@ -209,47 +111,248 @@ const Input = styled.input`
   }
 `;
 
-const FormGrid = styled.div`
-  display: grid;
-  gap: ${Theme.spacing.lg};
+const SearchContainer = styled.div`
+  position: relative;
+  max-width: 400px;
   
-  @media (min-width: 768px) {
-    grid-template-columns: 1fr 1fr;
+  @media (max-width: 768px) {
+    max-width: 100%;
   }
 `;
 
-const CheckboxGroup = styled.div`
+const SearchInput = styled(Input)`
+  padding-left: 40px;
+  padding-right: ${props => props.value ? '40px' : '12px'};
+  
+  @media (max-width: 768px) {
+    max-width: 100%;
+  }
+`;
+
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${Theme.colors.text.muted};
+  pointer-events: none;
+`;
+
+const ClearButton = styled.button`
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${Theme.colors.text.muted};
+  border-radius: ${Theme.radius.sm};
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.base};
+  }
+`;
+
+const RoleSelectionSection = styled.div`
+  margin-top: ${Theme.spacing.lg};
+  padding: ${Theme.spacing.lg};
+  background: ${Theme.colors.surface.soft};
+  border-radius: ${Theme.radius.md};
+`;
+
+const RoleCategory = styled.div`
+  margin-bottom: ${Theme.spacing.xl};
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const AdvancedRolesToggle = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  width: 100%;
+  padding: ${Theme.spacing.md};
+  background: ${Theme.colors.surface.soft};
+  border: 2px dashed ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  color: ${Theme.colors.text.muted};
+  font-weight: 500;
+  font-size: ${Theme.typography.small};
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: ${Theme.spacing.md};
+
+  &:hover {
+    border-color: ${Theme.colors.brand.navy[700]};
+    color: ${Theme.colors.brand.navy[700]};
+    background: ${Theme.colors.surface.card};
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+`;
+
+const CategoryTitle = styled.h4`
+  font-size: 1rem;
+  font-weight: 600;
+  color: ${Theme.colors.text.base};
+  margin-bottom: ${Theme.spacing.md};
   display: flex;
   align-items: center;
   gap: ${Theme.spacing.sm};
-  grid-column: 1 / -1;
+  text-transform: capitalize;
 `;
 
-const Checkbox = styled.input`
+const RoleCheckboxGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${Theme.spacing.sm};
+`;
+
+const RoleCheckbox = styled.label`
+  display: flex;
+  align-items: flex-start;
+  gap: ${Theme.spacing.md};
+  padding: ${Theme.spacing.md};
+  background: white;
+  border: 2px solid ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: ${Theme.colors.brand.navy[700]};
+    background: ${Theme.colors.surface.soft};
+  }
+`;
+
+const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   width: 20px;
   height: 20px;
   cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
 `;
 
-const CheckboxLabel = styled.label`
-  font-size: ${Theme.typography.body};
+const RoleInfo = styled.div`
+  flex: 1;
+`;
+
+const RoleName = styled.div`
+  font-weight: 600;
   color: ${Theme.colors.text.base};
-  cursor: pointer;
-  user-select: none;
+  margin-bottom: ${Theme.spacing.xs};
+  display: flex;
+  align-items: center;
+  gap: ${Theme.spacing.xs};
 `;
 
-const InfoBox = styled.div`
-  background: ${Theme.colors.accent.blueSoft};
-  border-left: 4px solid ${Theme.colors.brand.navy[700]};
-  padding: ${Theme.spacing.md};
-  border-radius: ${Theme.radius.md};
+const RoleDescription = styled.div`
+  font-size: 0.875rem;
+  color: ${Theme.colors.text.muted};
+`;
+
+const PermissionsPreview = styled.div`
   margin-top: ${Theme.spacing.lg};
-  margin-bottom: ${Theme.spacing.lg};
-  font-size: ${Theme.typography.body};
-  color: ${Theme.colors.text.base};
+  padding: ${Theme.spacing.lg};
+  background: white;
+  border: 2px solid ${Theme.colors.brand.navy[600]};
+  border-radius: ${Theme.radius.md};
 `;
 
-const Message = styled.div<{ type: 'success' | 'error' | 'info' }>`
+const PreviewTitle = styled.div`
+  font-weight: 600;
+  color: ${Theme.colors.text.base};
+  margin-bottom: ${Theme.spacing.md};
+  display: flex;
+  align-items: center;
+  gap: ${Theme.spacing.sm};
+`;
+
+const PermissionsList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: ${Theme.spacing.sm};
+`;
+
+const PermissionItem = styled.div`
+  font-size: 0.875rem;
+  color: ${Theme.colors.text.muted};
+  display: flex;
+  align-items: center;
+  gap: ${Theme.spacing.xs};
+
+  &::before {
+    content: '✓';
+    color: ${Theme.colors.status.success};
+    font-weight: bold;
+  }
+`;
+
+const Button = styled.button<{ $variant?: 'danger' | 'primary' | 'secondary' }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
+  min-height: 48px;
+  border-radius: ${Theme.radius.md};
+  font-weight: 600;
+  font-size: ${Theme.typography.body};
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: ${(props) =>
+    props.$variant === 'danger' 
+      ? Theme.colors.status.error 
+      : props.$variant === 'secondary'
+      ? Theme.colors.surface.muted
+      : Theme.colors.brand.navy[700]};
+  color: ${(props) => props.$variant === 'secondary' ? Theme.colors.text.base : 'white'};
+
+  &:hover {
+    background: ${(props) =>
+      props.$variant === 'danger' 
+        ? Theme.colors.status.errorDark 
+        : props.$variant === 'secondary'
+        ? Theme.colors.border.medium
+        : Theme.colors.brand.navy[600]};
+    transform: translateY(-1px);
+    box-shadow: ${Theme.shadow.soft};
+  }
+
+  &:disabled {
+    background: ${Theme.colors.border.medium};
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+const FormActions = styled.div`
+  display: flex;
+  gap: ${Theme.spacing.md};
+  justify-content: flex-end;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`;
+
+const Message = styled.div<{ type: 'success' | 'error' | 'info' | 'warning' }>`
   padding: ${Theme.spacing.md};
   border-radius: ${Theme.radius.md};
   margin-top: ${Theme.spacing.md};
@@ -261,12 +364,16 @@ const Message = styled.div<{ type: 'success' | 'error' | 'info' }>`
       ? '#d4edda'
       : props.type === 'error'
       ? '#f8d7da'
+      : props.type === 'warning'
+      ? '#fff3cd'
       : '#d1ecf1'};
   color: ${(props) =>
     props.type === 'success'
       ? '#155724'
       : props.type === 'error'
       ? '#721c24'
+      : props.type === 'warning'
+      ? '#856404'
       : '#0c5460'};
   border: 1px solid
     ${(props) =>
@@ -274,7 +381,83 @@ const Message = styled.div<{ type: 'success' | 'error' | 'info' }>`
         ? '#c3e6cb'
         : props.type === 'error'
         ? '#f5c6cb'
+        : props.type === 'warning'
+        ? '#ffeaa7'
         : '#bee5eb'};
+`;
+
+const UserList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${Theme.spacing.md};
+`;
+
+const UserCard = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: ${Theme.spacing.lg};
+  background: ${Theme.colors.surface.muted};
+  border-radius: ${Theme.radius.md};
+  border: 1px solid ${Theme.colors.border.base};
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: ${Theme.spacing.md};
+  }
+`;
+
+const UserInfo = styled.div`
+  flex: 1;
+`;
+
+const UserEmail = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${Theme.spacing.sm};
+  margin-bottom: ${Theme.spacing.xs};
+  flex-wrap: wrap;
+`;
+
+const Email = styled.strong`
+  font-size: 1rem;
+  color: ${Theme.colors.text.base};
+`;
+
+const SecondaryText = styled.div`
+  font-size: 0.875rem;
+  color: ${Theme.colors.text.muted};
+  margin-top: 2px;
+`;
+
+const RoleBadge = styled.span<{ $color?: string }>`
+  display: inline-block;
+  padding: ${Theme.spacing.xs} ${Theme.spacing.sm};
+  background: ${props => props.$color || Theme.colors.brand.navy[700]};
+  color: white;
+  border-radius: ${Theme.radius.sm};
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-right: ${Theme.spacing.xs};
+`;
+
+const UserMeta = styled.small`
+  color: ${Theme.colors.text.muted};
+  font-size: 0.875rem;
+  display: block;
+  margin-top: ${Theme.spacing.xs};
+`;
+
+const UserActions = styled.div`
+  display: flex;
+  gap: ${Theme.spacing.sm};
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    flex-direction: column;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -283,107 +466,97 @@ const EmptyState = styled.div`
   color: ${Theme.colors.text.muted};
 `;
 
-interface Admin {
-  uid: string;
-  email: string;
-  displayName: string | null;
-  role: string;
-  superAdmin?: boolean;
-  createdAt: string;
-  lastSignIn: string;
-}
+const InfoBox = styled.div`
+  background: ${Theme.colors.accent.blueSoft};
+  border-left: 4px solid ${Theme.colors.brand.navy[700]};
+  padding: ${Theme.spacing.md};
+  border-radius: ${Theme.radius.md};
+  margin-bottom: ${Theme.spacing.lg};
+  font-size: ${Theme.typography.body};
+  color: ${Theme.colors.text.base};
+`;
 
-export default function AdminManagementTab(): React.JSX.Element {
-  const [admins, setAdmins] = useState<Admin[]>([]);
-  const [activeTab, setActiveTab] = useState<'create' | 'promote'>('create');
+export default function AdminManagementTabNew(): React.JSX.Element {
+  const { hasLegacyClaims, isSuperAdmin } = useFirebaseAuth();
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
+  const [activeTab, setActiveTab] = useState<'create' | 'assign' | 'manage'>('create');
   
-  // Form fields for creating new user
+  // Form fields
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserDisplayName, setNewUserDisplayName] = useState('');
-  const [makeAdmin, setMakeAdmin] = useState(true);
+  const [existingUserEmail, setExistingUserEmail] = useState('');
   
-  // Form field for promoting existing user
-  const [newAdminEmail, setNewAdminEmail] = useState('');
+  // Role selection
+  const [selectedRoles, setSelectedRoles] = useState<RoleId[]>([]);
+  const [showAdvancedRoles, setShowAdvancedRoles] = useState(false);
   
   const [loading, setLoading] = useState(false);
-  const [loadingAdmins, setLoadingAdmins] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [editingUser, setEditingUser] = useState<{ uid: string; email: string; currentName: string | null } | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState('');
   const [message, setMessage] = useState<{
     text: string;
-    type: 'success' | 'error' | 'info';
+    type: 'success' | 'error' | 'info' | 'warning';
   } | null>(null);
 
-  const loadAdmins = async () => {
-    setLoadingAdmins(true);
+  // Helper: format last sign-in timestamp, show "Never" if absent/invalid
+  const formatLastSignIn = (ts?: string): string => {
+    if (!ts) return 'Never';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return 'Never';
+    return `${d.toLocaleDateString()} at ${d.toLocaleTimeString()}`;
+  };
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
     try {
-      const listAdminsFunc = httpsCallable(functions, 'listAdmins');
-      const result = await listAdminsFunc();
-      setAdmins((result.data as any).admins || []);
+      const listUsersFunc = httpsCallable(functions, 'listUsers');
+      const result = await listUsersFunc(showAllUsers ? { includeAll: true } : {});
+      setUsers((result.data as any).users || []);
     } catch (error: any) {
-      console.error('Error loading admins:', error);
+      console.error('Error loading users:', error);
       setMessage({
-        text: `Failed to load admins: ${error.message}`,
+        text: `Failed to load users: ${error.message}`,
         type: 'error',
       });
     } finally {
-      setLoadingAdmins(false);
+      setLoadingUsers(false);
     }
   };
 
   useEffect(() => {
-    loadAdmins();
+    // Reload whenever the toggle changes
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAllUsers]);
+
+  useEffect(() => {
+    loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const addAdmin = async () => {
-    if (!newAdminEmail.trim()) {
-      setMessage({ text: 'Please enter an email address', type: 'error' });
-      return;
-    }
+  const effectivePermissions = React.useMemo(() => {
+    return getPermissionsFromRoles(selectedRoles);
+  }, [selectedRoles]);
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newAdminEmail.trim())) {
-      setMessage({ text: 'Please enter a valid email address', type: 'error' });
-      return;
-    }
+  const roleValidation = React.useMemo(() => {
+    return isValidRoleCombination(selectedRoles);
+  }, [selectedRoles]);
 
-    setLoading(true);
-    setMessage(null);
-
-    try {
-      const setUserRoleFunc = httpsCallable(functions, 'setUserRole');
-      await setUserRoleFunc({
-        email: newAdminEmail.trim(),
-        isAdmin: true,
-        role: 'admin',
-      });
-
-      setMessage({
-        text: `✅ Admin access granted to ${newAdminEmail}`,
-        type: 'success',
-      });
-      setNewAdminEmail('');
-      await loadAdmins();
-    } catch (error: any) {
-      console.error('Error adding admin:', error);
-      let errorMessage = error.message;
-      
-      if (error.code === 'not-found') {
-        errorMessage = `User with email ${newAdminEmail} not found. Please create the account in Firebase Console first.`;
+  const handleRoleToggle = (roleId: RoleId) => {
+    setSelectedRoles(prev => {
+      if (prev.includes(roleId)) {
+        return prev.filter(r => r !== roleId);
+      } else {
+        return [...prev, roleId];
       }
-      
-      setMessage({
-        text: `❌ ${errorMessage}`,
-        type: 'error',
-      });
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const createNewUser = async () => {
-    // Validation
     if (!newUserEmail.trim()) {
       setMessage({ text: 'Please enter an email address', type: 'error' });
       return;
@@ -405,6 +578,16 @@ export default function AdminManagementTab(): React.JSX.Element {
       return;
     }
 
+    if (selectedRoles.length === 0) {
+      setMessage({ text: 'Please select at least one role', type: 'error' });
+      return;
+    }
+
+    if (!roleValidation.valid) {
+      setMessage({ text: roleValidation.conflicts?.[0] || 'Invalid role combination', type: 'error' });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
@@ -414,8 +597,7 @@ export default function AdminManagementTab(): React.JSX.Element {
         email: newUserEmail.trim(),
         password: newUserPassword,
         displayName: newUserDisplayName.trim(),
-        isAdmin: makeAdmin,
-        role: makeAdmin ? 'admin' : 'user',
+        roles: selectedRoles,
       });
 
       const data = result.data as any;
@@ -425,16 +607,12 @@ export default function AdminManagementTab(): React.JSX.Element {
         type: 'success',
       });
 
-      // Clear form
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserDisplayName('');
-      setMakeAdmin(true);
+      setSelectedRoles([]);
 
-      // Reload admins list if we created an admin
-      if (makeAdmin) {
-        await loadAdmins();
-      }
+      await loadUsers();
     } catch (error: any) {
       console.error('Error creating user:', error);
       setMessage({
@@ -446,23 +624,79 @@ export default function AdminManagementTab(): React.JSX.Element {
     }
   };
 
-  const removeAdminRole = async (uid: string, email: string) => {
-    if (!window.confirm(`Remove admin access for ${email}?`)) return;
+  const assignRolesToExistingUser = async () => {
+    if (!existingUserEmail.trim()) {
+      setMessage({ text: 'Please enter an email address', type: 'error' });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(existingUserEmail.trim())) {
+      setMessage({ text: 'Please enter a valid email address', type: 'error' });
+      return;
+    }
+
+    if (selectedRoles.length === 0) {
+      setMessage({ text: 'Please select at least one role', type: 'error' });
+      return;
+    }
+
+    if (!roleValidation.valid) {
+      setMessage({ text: roleValidation.conflicts?.[0] || 'Invalid role combination', type: 'error' });
+      return;
+    }
 
     setLoading(true);
     setMessage(null);
 
     try {
-      const removeAdminFunc = httpsCallable(functions, 'removeAdmin');
-      await removeAdminFunc({ uid });
+      const setUserRolesFunc = httpsCallable(functions, 'setUserRoles');
+      await setUserRolesFunc({
+        email: existingUserEmail.trim(),
+        roles: selectedRoles,
+      });
 
       setMessage({
-        text: `✅ Admin access removed from ${email}`,
+        text: `✅ Roles assigned to ${existingUserEmail}`,
         type: 'success',
       });
-      await loadAdmins();
+      setExistingUserEmail('');
+      setSelectedRoles([]);
+      await loadUsers();
     } catch (error: any) {
-      console.error('Error removing admin:', error);
+      console.error('Error assigning roles:', error);
+      let errorMessage = error.message;
+      
+      if (error.code === 'not-found') {
+        errorMessage = `User with email ${existingUserEmail} not found. Please create the account first.`;
+      }
+      
+      setMessage({
+        text: `❌ ${errorMessage}`,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeUserRoles = async (uid: string, email: string) => {
+    if (!window.confirm(`Remove all roles from ${email}? They will lose dashboard access.`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const removeUserRolesFunc = httpsCallable(functions, 'removeUserRoles');
+      await removeUserRolesFunc({ uid });
+
+      setMessage({
+        text: `✅ Dashboard access removed for ${email}`,
+        type: 'success',
+      });
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error removing roles:', error);
       setMessage({
         text: `❌ ${error.message}`,
         type: 'error',
@@ -472,8 +706,8 @@ export default function AdminManagementTab(): React.JSX.Element {
     }
   };
 
-  const setSuperAdminProtection = async (uid: string, email: string) => {
-    if (!window.confirm(`Set super admin protection for ${email}? This will make the account permanent and unable to be deleted.`)) return;
+  const makeSuperAdmin = async (uid: string, email: string) => {
+    if (!window.confirm(`Grant Super Admin status to ${email}? This gives full system access and cannot be easily revoked.`)) return;
 
     setLoading(true);
     setMessage(null);
@@ -487,9 +721,9 @@ export default function AdminManagementTab(): React.JSX.Element {
         text: `✅ ${data.message}`,
         type: 'success',
       });
-      await loadAdmins();
+      await loadUsers();
     } catch (error: any) {
-      console.error('Error setting super admin protection:', error);
+      console.error('Error setting Super Admin:', error);
       setMessage({
         text: `❌ ${error.message}`,
         type: 'error',
@@ -499,20 +733,183 @@ export default function AdminManagementTab(): React.JSX.Element {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      addAdmin();
+  // Convenience: jump to Assign-to-Existing with prefilled email
+  const startAssignRoles = (email: string) => {
+    setExistingUserEmail(email);
+    setActiveTab('assign');
+    // optional scroll to the assign section
+    try {
+      document.getElementById('assign-existing-section')?.scrollIntoView({ behavior: 'smooth' });
+    } catch {}
+  };
+
+  const migrateMyAccount = async () => {
+    if (!window.confirm('Migrate your account to the new role system? You will need to log out and log back in after migration.')) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const migrateFunc = httpsCallable(functions, 'migrateMyAccountToNewSystem');
+      const result = await migrateFunc();
+      const data = result.data as any;
+
+      setMessage({
+        text: `✅ ${data.message}. ${data.note || ''}`,
+        type: 'success',
+      });
+    } catch (error: any) {
+      console.error('Error migrating account:', error);
+      setMessage({
+        text: `❌ ${error.message}`,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const updateUserDisplayName = async () => {
+    if (!editingUser) return;
+
+    if (!editDisplayName.trim()) {
+      setMessage({ text: 'Display name cannot be empty', type: 'error' });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const updateProfileFunc = httpsCallable(functions, 'updateUserProfile');
+      await updateProfileFunc({
+        uid: editingUser.uid,
+        displayName: editDisplayName.trim(),
+      });
+
+      setMessage({
+        text: `✅ Display name updated for ${editingUser.email}`,
+        type: 'success',
+      });
+      setEditingUser(null);
+      setEditDisplayName('');
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error updating display name:', error);
+      setMessage({
+        text: `❌ ${error.message}`,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteUserAccount = async (uid: string, email: string) => {
+    if (!window.confirm(`⚠️ PERMANENT DELETE\n\nAre you sure you want to permanently delete ${email}?\n\nThis action CANNOT be undone. The user account will be completely removed from Firebase.`)) {
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const deleteUserFunc = httpsCallable(functions, 'deleteUser');
+      const result = await deleteUserFunc({ uid });
+      const data = result.data as any;
+
+      setMessage({
+        text: `✅ ${data.message}`,
+        type: 'success',
+      });
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      setMessage({
+        text: `❌ ${error.message}`,
+        type: 'error',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rolesByCategory = getRolesByCategory();
+  
+  // Define common roles (most frequently used)
+  const commonRoleIds: RoleId[] = [
+    RoleId.ADMIN,
+    RoleId.PRAYER_MANAGER,
+    RoleId.EVENTS_MANAGER,
+    RoleId.DONATIONS_MANAGER,
+    RoleId.NOTIFICATIONS_SENDER
+  ];
+  
+  // Define advanced roles (less frequently used, more granular)
+  const advancedRoleIds: RoleId[] = [
+    RoleId.PRAYER_VIEWER,
+    RoleId.EVENTS_EDITOR,
+    RoleId.EVENTS_VIEWER,
+    RoleId.CAMPAIGN_MANAGER,
+    RoleId.DONATIONS_VIEWER,
+    RoleId.NOTIFICATIONS_MANAGER,
+    RoleId.REPORT_VIEWER
+  ];
+
   return (
     <Container>
-      <PageTitle>Admin Management</PageTitle>
+      <PageTitle>User Management</PageTitle>
+
+      {editingUser && (
+        <InfoBox style={{ marginBottom: Theme.spacing.xl }}>
+          <div style={{ marginBottom: Theme.spacing.md }}>
+            <strong>Edit Display Name for {editingUser.email}</strong>
+          </div>
+          <div style={{ display: 'flex', gap: Theme.spacing.md, alignItems: 'flex-end' }}>
+            <FormGroup style={{ flex: 1 }}>
+              <Label htmlFor="edit-display-name">Display Name</Label>
+              <Input
+                id="edit-display-name"
+                type="text"
+                value={editDisplayName}
+                onChange={(e) => setEditDisplayName(e.target.value)}
+                placeholder="Enter full name"
+                disabled={loading}
+              />
+            </FormGroup>
+            <Button onClick={updateUserDisplayName} disabled={loading || !editDisplayName.trim()}>
+              Save
+            </Button>
+            <Button
+              $variant="secondary"
+              onClick={() => {
+                setEditingUser(null);
+                setEditDisplayName('');
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+          </div>
+        </InfoBox>
+      )}
+
+      {hasLegacyClaims && (
+        <InfoBox style={{ marginBottom: Theme.spacing.xl, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <strong>Legacy Account Detected:</strong> You're using an old admin account format. 
+            Migrate to the new role system for full functionality.
+          </div>
+          <Button onClick={migrateMyAccount} disabled={loading} style={{ marginLeft: Theme.spacing.md }}>
+            Migrate My Account
+          </Button>
+        </InfoBox>
+      )}
 
       <Section>
         <SectionTitle>
           <UserPlus size={24} />
-          Add New Admin
+          User Management
         </SectionTitle>
 
         <TabContainer>
@@ -523,25 +920,31 @@ export default function AdminManagementTab(): React.JSX.Element {
             Create New User
           </TabButton>
           <TabButton
-            $active={activeTab === 'promote'}
-            onClick={() => setActiveTab('promote')}
+            $active={activeTab === 'assign'}
+            onClick={() => setActiveTab('assign')}
           >
-            Promote Existing User
+            Assign Roles
+          </TabButton>
+          <TabButton
+            $active={activeTab === 'manage'}
+            onClick={() => setActiveTab('manage')}
+          >
+            Manage Users
           </TabButton>
         </TabContainer>
 
         {activeTab === 'create' ? (
           <>
             <InfoBox>
-              Create a new Firebase user account and optionally grant admin access immediately.
-              A password reset link will be generated for the user to set their own password.
+              Create a new Firebase user account and assign roles. A password reset link will be generated.
             </InfoBox>
 
             <Form>
               <FormGrid>
                 <FormGroup>
                   <Label htmlFor="new-user-email">
-                    <Mail size={16} /> Email Address
+                    <Mail size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                    Email Address
                   </Label>
                   <Input
                     id="new-user-email"
@@ -554,22 +957,9 @@ export default function AdminManagementTab(): React.JSX.Element {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label htmlFor="new-user-password">
-                    <Lock size={16} /> Temporary Password
-                  </Label>
-                  <Input
-                    id="new-user-password"
-                    type="password"
-                    placeholder="Minimum 6 characters"
-                    value={newUserPassword}
-                    onChange={(e) => setNewUserPassword(e.target.value)}
-                    disabled={loading}
-                  />
-                </FormGroup>
-
-                <FormGroup>
                   <Label htmlFor="new-user-name">
-                    <User size={16} /> Display Name
+                    <User size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                    Display Name
                   </Label>
                   <Input
                     id="new-user-name"
@@ -580,118 +970,497 @@ export default function AdminManagementTab(): React.JSX.Element {
                     disabled={loading}
                   />
                 </FormGroup>
+
+                <FormGroup style={{ gridColumn: '1 / -1' }}>
+                  <Label htmlFor="new-user-password">
+                    <Lock size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                    Temporary Password
+                  </Label>
+                  <Input
+                    id="new-user-password"
+                    type="password"
+                    placeholder="Minimum 6 characters"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                </FormGroup>
               </FormGrid>
 
-              <CheckboxGroup>
-                <Checkbox
-                  id="make-admin"
-                  type="checkbox"
-                  checked={makeAdmin}
-                  onChange={(e) => setMakeAdmin(e.target.checked)}
-                  disabled={loading}
-                />
-                <CheckboxLabel htmlFor="make-admin">
-                  <Shield size={16} style={{ verticalAlign: 'middle' }} /> Grant admin access
-                  immediately
-                </CheckboxLabel>
-              </CheckboxGroup>
+              <RoleSelectionSection>
+                <PreviewTitle>
+                  <Shield size={20} />
+                  Select Roles
+                </PreviewTitle>
 
-              <FormRow>
+                {!roleValidation.valid && (
+                  <Message type="warning">
+                    <AlertCircle size={20} />
+                    {roleValidation.conflicts?.[0]}
+                  </Message>
+                )}
+
+                {/* Common Roles Section */}
+                {Object.entries(rolesByCategory).map(([category, roles]) => {
+                  // Filter to show only common roles
+                  const commonRoles = roles.filter(role => commonRoleIds.includes(role.id));
+                  
+                  if (commonRoles.length === 0) return null;
+                  
+                  return (
+                    <RoleCategory key={`${category}-common`}>
+                      <CategoryTitle>
+                        {category} Roles
+                      </CategoryTitle>
+                      <RoleCheckboxGroup>
+                        {commonRoles.map((role) => (
+                          <RoleCheckbox key={role.id}>
+                            <Checkbox
+                              checked={selectedRoles.includes(role.id)}
+                              onChange={() => handleRoleToggle(role.id)}
+                              disabled={loading}
+                            />
+                            <RoleInfo>
+                              <RoleName>
+                                <span>{role.icon}</span>
+                                {role.name}
+                              </RoleName>
+                              <RoleDescription>{role.description}</RoleDescription>
+                            </RoleInfo>
+                          </RoleCheckbox>
+                        ))}
+                      </RoleCheckboxGroup>
+                    </RoleCategory>
+                  );
+                })}
+
+                {/* Advanced Roles Toggle Button */}
+                <AdvancedRolesToggle 
+                  type="button"
+                  onClick={() => setShowAdvancedRoles(!showAdvancedRoles)}
+                >
+                  {showAdvancedRoles ? '▲' : '▼'} 
+                  {showAdvancedRoles ? 'Hide' : 'Show'} Advanced Roles ({advancedRoleIds.length})
+                </AdvancedRolesToggle>
+
+                {/* Advanced Roles Section (Conditionally Rendered) */}
+                {showAdvancedRoles && Object.entries(rolesByCategory).map(([category, roles]) => {
+                  // Filter to show only advanced roles
+                  const advancedRoles = roles.filter(role => advancedRoleIds.includes(role.id));
+                  
+                  if (advancedRoles.length === 0) return null;
+                  
+                  return (
+                    <RoleCategory key={`${category}-advanced`}>
+                      <CategoryTitle>
+                        {category} Roles (Advanced)
+                      </CategoryTitle>
+                      <RoleCheckboxGroup>
+                        {advancedRoles.map((role) => (
+                          <RoleCheckbox key={role.id}>
+                            <Checkbox
+                              checked={selectedRoles.includes(role.id)}
+                              onChange={() => handleRoleToggle(role.id)}
+                              disabled={loading}
+                            />
+                            <RoleInfo>
+                              <RoleName>
+                                <span>{role.icon}</span>
+                                {role.name}
+                              </RoleName>
+                              <RoleDescription>{role.description}</RoleDescription>
+                            </RoleInfo>
+                          </RoleCheckbox>
+                        ))}
+                      </RoleCheckboxGroup>
+                    </RoleCategory>
+                  );
+                })}
+
+                {effectivePermissions.length > 0 && (
+                  <PermissionsPreview>
+                    <PreviewTitle>
+                      <Info size={20} />
+                      Effective Permissions ({effectivePermissions.length})
+                    </PreviewTitle>
+                    <PermissionsList>
+                      {effectivePermissions.map((permission) => (
+                        <PermissionItem key={permission}>
+                          {PERMISSION_LABELS[permission]}
+                        </PermissionItem>
+                      ))}
+                    </PermissionsList>
+                  </PermissionsPreview>
+                )}
+              </RoleSelectionSection>
+
+              <FormActions>
+                <Button
+                  $variant="secondary"
+                  onClick={() => setSelectedRoles([])}
+                  disabled={loading}
+                  type="button"
+                >
+                  Clear Selection
+                </Button>
                 <Button onClick={createNewUser} disabled={loading}>
                   <UserPlus size={20} />
                   {loading ? 'Creating...' : 'Create User'}
                 </Button>
-              </FormRow>
+              </FormActions>
             </Form>
           </>
-        ) : (
+        ) : activeTab === 'assign' ? (
           <>
+            <div id="assign-existing-section" />
             <InfoBox>
-              Grant admin access to an existing Firebase user. The user account must already exist
-              in Firebase Authentication.
+              Assign roles to an existing Firebase user. The user account must already exist.
             </InfoBox>
 
             <Form>
-              <FormRow>
-                <FormGroup>
-                  <Label htmlFor="admin-email">Email Address</Label>
-                  <Input
-                    id="admin-email"
-                    type="email"
-                    placeholder="admin@almadinamasjid.org.au"
-                    value={newAdminEmail}
-                    onChange={(e) => setNewAdminEmail(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={loading}
-                  />
-                </FormGroup>
-                <Button onClick={addAdmin} disabled={loading}>
-                  <UserPlus size={20} />
-                  {loading ? 'Adding...' : 'Add Admin'}
+              <FormGroup>
+                <Label htmlFor="existing-email">Email Address</Label>
+                <Input
+                  id="existing-email"
+                  type="email"
+                  placeholder="existing.user@almadinamasjid.org.au"
+                  value={existingUserEmail}
+                  onChange={(e) => setExistingUserEmail(e.target.value)}
+                  disabled={loading}
+                />
+              </FormGroup>
+
+              <RoleSelectionSection>
+                <PreviewTitle>
+                  <Shield size={20} />
+                  Select Roles to Assign
+                </PreviewTitle>
+
+                {!roleValidation.valid && (
+                  <Message type="warning">
+                    <AlertCircle size={20} />
+                    {roleValidation.conflicts?.[0]}
+                  </Message>
+                )}
+
+                {/* Common Roles Section */}
+                {Object.entries(rolesByCategory).map(([category, roles]) => {
+                  // Filter to show only common roles
+                  const commonRoles = roles.filter(role => commonRoleIds.includes(role.id));
+                  
+                  if (commonRoles.length === 0) return null;
+                  
+                  return (
+                    <RoleCategory key={`${category}-common-existing`}>
+                      <CategoryTitle>
+                        {category} Roles
+                      </CategoryTitle>
+                      <RoleCheckboxGroup>
+                        {commonRoles.map((role) => (
+                          <RoleCheckbox key={role.id}>
+                            <Checkbox
+                              checked={selectedRoles.includes(role.id)}
+                              onChange={() => handleRoleToggle(role.id)}
+                              disabled={loading}
+                            />
+                            <RoleInfo>
+                              <RoleName>
+                                <span>{role.icon}</span>
+                                {role.name}
+                              </RoleName>
+                              <RoleDescription>{role.description}</RoleDescription>
+                            </RoleInfo>
+                          </RoleCheckbox>
+                        ))}
+                      </RoleCheckboxGroup>
+                    </RoleCategory>
+                  );
+                })}
+
+                {/* Advanced Roles Toggle Button */}
+                <AdvancedRolesToggle 
+                  type="button"
+                  onClick={() => setShowAdvancedRoles(!showAdvancedRoles)}
+                >
+                  {showAdvancedRoles ? '▲' : '▼'} 
+                  {showAdvancedRoles ? 'Hide' : 'Show'} Advanced Roles ({advancedRoleIds.length})
+                </AdvancedRolesToggle>
+
+                {/* Advanced Roles Section (Conditionally Rendered) */}
+                {showAdvancedRoles && Object.entries(rolesByCategory).map(([category, roles]) => {
+                  // Filter to show only advanced roles
+                  const advancedRoles = roles.filter(role => advancedRoleIds.includes(role.id));
+                  
+                  if (advancedRoles.length === 0) return null;
+                  
+                  return (
+                    <RoleCategory key={`${category}-advanced-existing`}>
+                      <CategoryTitle>
+                        {category} Roles (Advanced)
+                      </CategoryTitle>
+                      <RoleCheckboxGroup>
+                        {advancedRoles.map((role) => (
+                          <RoleCheckbox key={role.id}>
+                            <Checkbox
+                              checked={selectedRoles.includes(role.id)}
+                              onChange={() => handleRoleToggle(role.id)}
+                              disabled={loading}
+                            />
+                            <RoleInfo>
+                              <RoleName>
+                                <span>{role.icon}</span>
+                                {role.name}
+                              </RoleName>
+                              <RoleDescription>{role.description}</RoleDescription>
+                            </RoleInfo>
+                          </RoleCheckbox>
+                        ))}
+                      </RoleCheckboxGroup>
+                    </RoleCategory>
+                  );
+                })}
+
+                {effectivePermissions.length > 0 && (
+                  <PermissionsPreview>
+                    <PreviewTitle>
+                      <Info size={20} />
+                      Effective Permissions ({effectivePermissions.length})
+                    </PreviewTitle>
+                    <PermissionsList>
+                      {effectivePermissions.map((permission) => (
+                        <PermissionItem key={permission}>
+                          {PERMISSION_LABELS[permission]}
+                        </PermissionItem>
+                      ))}
+                    </PermissionsList>
+                  </PermissionsPreview>
+                )}
+              </RoleSelectionSection>
+
+              <FormActions>
+                <Button
+                  $variant="secondary"
+                  onClick={() => setSelectedRoles([])}
+                  disabled={loading}
+                  type="button"
+                >
+                  Clear Selection
                 </Button>
-              </FormRow>
+                <Button onClick={assignRolesToExistingUser} disabled={loading}>
+                  <Shield size={20} />
+                  {loading ? 'Assigning...' : 'Assign Roles'}
+                </Button>
+              </FormActions>
             </Form>
           </>
-        )}
+        ) : activeTab === 'manage' ? (
+          <>
+            <InfoBox>
+              View and manage existing users. Edit display names, remove dashboard access, or delete user accounts.
+            </InfoBox>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: Theme.spacing.md, marginBottom: Theme.spacing.lg }}>
+              <SearchContainer>
+                <SearchIcon>
+                  <Search size={18} />
+                </SearchIcon>
+                <SearchInput
+                  type="text"
+                  placeholder="Search users by name, email, or role..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                />
+                {userSearchQuery && (
+                  <ClearButton
+                    onClick={() => setUserSearchQuery('')}
+                    title="Clear search"
+                  >
+                    <X size={18} />
+                  </ClearButton>
+                )}
+              </SearchContainer>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: Theme.typography.body, fontWeight: 500 }}>
+                <input
+                  type="checkbox"
+                  checked={showAllUsers}
+                  onChange={(e) => setShowAllUsers(e.target.checked)}
+                />
+                Show all users (including non-dashboard users)
+              </label>
+            </div>
+
+            {loadingUsers ? (
+              <Loading text="Loading users..." />
+            ) : users.length === 0 ? (
+              <EmptyState>
+                <Shield size={48} color={Theme.colors.text.muted} />
+                <p>No users found</p>
+              </EmptyState>
+            ) : (
+              <>
+                {(() => {
+                  // Filter users based on search query
+                  const filteredUsers = users.filter(user => {
+                    if (!userSearchQuery.trim()) return true;
+                    
+                    const searchLower = userSearchQuery.toLowerCase();
+                    
+                    // Search by email
+                    if (user.email.toLowerCase().includes(searchLower)) return true;
+                    
+                    // Search by display name
+                    if (user.displayName?.toLowerCase().includes(searchLower)) return true;
+                    
+                    // Search by role names
+                    const roleNames = user.roles.map(roleId => {
+                      const role = ROLES[roleId];
+                      return role?.name || roleId;
+                    }).join(' ').toLowerCase();
+                    if (roleNames.includes(searchLower)) return true;
+                    
+                    return false;
+                  });
+
+                  return (
+                    <>
+                      <div style={{ marginBottom: Theme.spacing.md, color: Theme.colors.text.muted, fontSize: Theme.typography.small }}>
+                        Showing {filteredUsers.length} of {users.length} {showAllUsers ? 'user' : 'dashboard user'}{users.length !== 1 ? 's' : ''}
+                        {userSearchQuery && ` (filtered by "${userSearchQuery}")`}
+                      </div>
+                      {filteredUsers.length === 0 ? (
+                        <EmptyState>
+                          <Shield size={48} color={Theme.colors.text.muted} />
+                          <p>No users match your search</p>
+                        </EmptyState>
+                      ) : (
+                        <UserList>
+                          {filteredUsers.map((user) => (
+                    <UserCard key={user.uid}>
+                      <UserInfo>
+                        <UserEmail>
+                          <Shield size={20} color={Theme.colors.brand.navy[700]} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Email>{user.displayName || user.email}</Email>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingUser({ uid: user.uid, email: user.email, currentName: user.displayName });
+                                  setEditDisplayName(user.displayName || '');
+                                  setTimeout(() => {
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }, 100);
+                                }}
+                                disabled={loading}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: loading ? 'not-allowed' : 'pointer',
+                                  padding: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  opacity: loading ? 0.5 : 1,
+                                }}
+                                title="Edit display name"
+                              >
+                                <Edit2 size={14} color={Theme.colors.text.muted} />
+                              </button>
+                            </div>
+                            {user.displayName && (
+                              <SecondaryText>{user.email}</SecondaryText>
+                            )}
+                          </div>
+                        </UserEmail>
+                        <div>
+                          {user.roles.map((roleId) => {
+                            const role = ROLES[roleId];
+                            return (
+                              <RoleBadge key={roleId} $color={role?.color}>
+                                {role?.icon} {role?.name || roleId}
+                              </RoleBadge>
+                            );
+                          })}
+                          {user.roles.length === 0 && (
+                            <RoleBadge $color={Theme.colors.text.muted}>No Dashboard Access</RoleBadge>
+                          )}
+                        </div>
+                        <UserMeta>
+                          {user.permissions.length} permissions • Last sign in: {formatLastSignIn(user.lastSignIn)}
+                        </UserMeta>
+                      </UserInfo>
+                      <UserActions>
+                        {isSuperAdmin && !user.isSuperAdmin && user.roles.length > 0 && (
+                          <Button
+                            $variant="secondary"
+                            onClick={() => makeSuperAdmin(user.uid, user.email)}
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                            title="Grant Super Admin status"
+                          >
+                            <Shield size={16} />
+                            Make Super Admin
+                          </Button>
+                        )}
+                        {!user.isSuperAdmin && user.roles.length > 0 && (
+                          <Button
+                            $variant="secondary"
+                            onClick={() => removeUserRoles(user.uid, user.email)}
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                            title="Remove dashboard access"
+                          >
+                            <UserMinus size={16} />
+                            Remove Access
+                          </Button>
+                        )}
+                        {!user.isSuperAdmin && user.roles.length === 0 && (
+                          <Button 
+                            onClick={() => startAssignRoles(user.email)} 
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                          >
+                            Assign Roles
+                          </Button>
+                        )}
+                        {isSuperAdmin && !user.isSuperAdmin && (
+                          <Button
+                            onClick={() => deleteUserAccount(user.uid, user.email)}
+                            disabled={loading}
+                            style={{
+                              fontSize: '0.875rem',
+                              padding: '8px 12px',
+                              minHeight: '36px',
+                              background: 'transparent',
+                              color: '#dc2626',
+                              border: '1px solid #dc2626',
+                            }}
+                            title="Permanently delete this user account"
+                          >
+                            Delete
+                          </Button>
+                        )}
+                        {user.isSuperAdmin && (
+                          <RoleBadge $color="#dc2626">🔰 Protected</RoleBadge>
+                        )}
+                      </UserActions>
+                    </UserCard>
+                  ))}
+                        </UserList>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
+            )}
+          </>
+        ) : null}
 
         {message && (
           <Message type={message.type}>
             <AlertCircle size={20} />
             {message.text}
           </Message>
-        )}
-      </Section>
-
-      <Section>
-        <SectionTitle>
-          <Shield size={24} />
-          Current Admins ({admins.length})
-        </SectionTitle>
-
-        {loadingAdmins ? (
-          <Loading text="Loading admins..." />
-        ) : admins.length === 0 ? (
-          <EmptyState>
-            <Shield size={48} color={Theme.colors.text.muted} />
-            <p>No admins found</p>
-          </EmptyState>
-        ) : (
-          <AdminList>
-            {admins.map((admin) => (
-              <AdminCard key={admin.uid}>
-                <AdminInfo>
-                  <AdminEmail>
-                    <Shield size={20} color={Theme.colors.brand.navy[700]} />
-                    <Email>{admin.email}</Email>
-                    <RoleBadge>{admin.role}</RoleBadge>
-                  </AdminEmail>
-                  <AdminMeta>
-                    Last sign in: {new Date(admin.lastSignIn).toLocaleDateString()} at{' '}
-                    {new Date(admin.lastSignIn).toLocaleTimeString()}
-                  </AdminMeta>
-                </AdminInfo>
-                <AdminActions>
-                  {!admin.superAdmin && (
-                    <Button
-                      onClick={() => setSuperAdminProtection(admin.uid, admin.email)}
-                      disabled={loading}
-                    >
-                      <Shield size={20} />
-                      Make Permanent
-                    </Button>
-                  )}
-                  <Button
-                    $variant="danger"
-                    onClick={() => removeAdminRole(admin.uid, admin.email)}
-                    disabled={loading}
-                  >
-                    <UserMinus size={20} />
-                    Remove Access
-                  </Button>
-                </AdminActions>
-              </AdminCard>
-            ))}
-          </AdminList>
         )}
       </Section>
     </Container>

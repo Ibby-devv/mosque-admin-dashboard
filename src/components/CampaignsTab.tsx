@@ -22,6 +22,8 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 // ============================================================================
 // TYPES
@@ -384,6 +386,10 @@ interface CampaignsTabProps {
 }
 
 export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission(Permission.EDIT_CAMPAIGNS);
+  const canDelete = hasPermission(Permission.DELETE_CAMPAIGNS);
+  
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -596,7 +602,7 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
     <Container>
       <Header>
         <Title>Campaigns Management</Title>
-        <Button onClick={() => openModal()}>
+        <Button onClick={() => openModal()} disabled={!canEdit}>
           <Plus size={20} />
           Add New Campaign
         </Button>
@@ -610,7 +616,7 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
           <EmptyStateText>
             Create your first fundraising campaign to start engaging with your community
           </EmptyStateText>
-          <Button onClick={() => openModal()}>
+          <Button onClick={() => openModal()} disabled={!canEdit}>
             <Plus size={20} />
             Add First Campaign
           </Button>
@@ -663,13 +669,14 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
                 </CampaignDetail>
 
                 <CampaignActions>
-                  <SmallButton onClick={() => openModal(campaign)}>
+                  <SmallButton onClick={() => openModal(campaign)} disabled={!canEdit}>
                     <Edit2 size={16} />
                     Edit
                   </SmallButton>
                   <SmallButton
                     $variant="danger"
                     onClick={() => handleDeleteCampaign(campaign.id)}
+                    disabled={!canDelete}
                   >
                     <Trash2 size={16} />
                     Delete
@@ -822,7 +829,7 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
               <Button onClick={closeModal} style={{ background: '#6b7280' }}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveCampaign} disabled={saving}>
+              <Button onClick={handleSaveCampaign} disabled={saving || !canEdit}>
                 <Save size={20} />
                 {saving ? 'Saving...' : (editingCampaign ? 'Update Campaign' : 'Create Campaign')}
               </Button>

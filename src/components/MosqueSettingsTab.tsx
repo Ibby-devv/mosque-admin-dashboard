@@ -4,6 +4,8 @@ import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle } fr
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { MosqueSettingsTabProps } from '../types';
 import { Theme, media } from '../constants/theme';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 const Card = styled.div`
   background: ${Theme.colors.surface.card};
@@ -379,6 +381,9 @@ interface GeocodeResult {
 }
 
 export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, saving }: MosqueSettingsTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission(Permission.EDIT_MOSQUE_SETTINGS);
+  
   const [errors, setErrors] = useState({ latitude: '', longitude: '' });
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeResult, setGeocodeResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -742,7 +747,7 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
 
        <SaveButton
         onClick={handleSave}
-        disabled={saving || hasErrors}
+        disabled={saving || hasErrors || !canEdit}
         $dirty={hasUnsavedChanges}
         title={hasErrors ? 'Please fix coordinate errors before saving' : undefined}
       >
