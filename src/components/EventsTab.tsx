@@ -19,6 +19,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, EventCategory, EventCategoriesConfig } from '../types';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 interface EventsTabProps {
   saving: boolean;
@@ -490,6 +492,10 @@ const StatItem = styled.span<{ $muted?: boolean }>`
 
 // Component
 export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission(Permission.EDIT_EVENTS);
+  const canDelete = hasPermission(Permission.DELETE_EVENTS);
+  
   const [activeTab, setActiveTab] = useState<'events' | 'categories'>('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [categories, setCategories] = useState<EventCategory[]>([]);
@@ -911,7 +917,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
           </div>
 
           <ButtonGroup>
-            <Button onClick={() => openModal()}>
+            <Button onClick={() => openModal()} disabled={!canEdit}>
               <Plus size={20} />
               Add New Event
             </Button>
@@ -927,7 +933,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
               <EmptyStateText>
                 Create your first event to start engaging with your community
               </EmptyStateText>
-              <Button onClick={() => openModal()}>
+              <Button onClick={() => openModal()} disabled={!canEdit}>
                 <Plus size={20} />
                 Add First Event
               </Button>
@@ -1019,6 +1025,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
                         <SmallButton 
                           variant="danger"
                           onClick={() => handleDeleteEvent(event.id, event.title)}
+                          disabled={!canDelete}
                         >
                           <Trash2 size={16} />
                           Delete
@@ -1241,7 +1248,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
             </FormGroup>
 
             <ButtonGroup>
-              <Button onClick={handleSaveEvent} disabled={saving}>
+              <Button onClick={handleSaveEvent} disabled={saving || !canEdit}>
                 <Save size={20} />
                 {saving ? 'Saving...' : (editingEvent ? 'Update Event' : 'Create Event')}
               </Button>

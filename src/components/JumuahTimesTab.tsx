@@ -5,6 +5,8 @@ import { JumuahTimesTabProps } from "../types";
 import TimeInput from './TimeInput';
 import { Theme, media } from '../constants/theme';
 import Card from './ui/Card';
+import { usePermissions } from '../hooks/usePermissions';
+import { Permission } from '../constants/roles';
 
 // Define the new data structure for Jumuah times
 interface JumuahTime {
@@ -324,6 +326,9 @@ export default function JumuahTimesTab({
   onSave,
   saving,
 }: JumuahTimesTabProps): React.JSX.Element {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission(Permission.EDIT_PRAYER_TIMES);
+  
   const [jumuahData, setJumuahData] = useState<JumuahData>({
     times: [],
     last_updated: new Date().toISOString().split("T")[0],
@@ -439,7 +444,7 @@ export default function JumuahTimesTab({
           {hasChanges && <UnsavedIndicator />}
         </TitleSection>
         <ButtonGroup>
-          <Button onClick={() => openModal()}>
+          <Button onClick={() => openModal()} disabled={!canEdit}>
             <Plus size={20} />
             Add Jumuah Time
           </Button>
@@ -500,7 +505,7 @@ export default function JumuahTimesTab({
 
       <SaveButton
         onClick={handleSave}
-        disabled={saving}
+        disabled={saving || !canEdit}
         $hasChanges={hasChanges}
       >
         <Save size={20} />
