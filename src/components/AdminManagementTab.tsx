@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Theme } from '../constants/theme';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { UserPlus, UserMinus, Shield, AlertCircle, Mail, Lock, User, Info, Edit2 } from 'lucide-react';
+import { UserPlus, UserMinus, Shield, AlertCircle, Mail, Lock, User, Info, Edit2, Search, X } from 'lucide-react';
 import Loading from './ui/Loading';
 import { RoleId, ROLES, getRolesByCategory, PERMISSION_LABELS } from '../constants/roles';
 import { getPermissionsFromRoles, isValidRoleCombination } from '../utils/permissions';
@@ -108,6 +108,55 @@ const Input = styled.input`
   &:disabled {
     background: ${Theme.colors.surface.muted};
     cursor: not-allowed;
+  }
+`;
+
+const SearchContainer = styled.div`
+  position: relative;
+  max-width: 400px;
+  
+  @media (max-width: 768px) {
+    max-width: 100%;
+  }
+`;
+
+const SearchInput = styled(Input)`
+  padding-left: 40px;
+  padding-right: ${props => props.value ? '40px' : '12px'};
+  
+  @media (max-width: 768px) {
+    max-width: 100%;
+  }
+`;
+
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${Theme.colors.text.muted};
+  pointer-events: none;
+`;
+
+const ClearButton = styled.button`
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${Theme.colors.text.muted};
+  border-radius: ${Theme.radius.sm};
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${Theme.colors.surface.muted};
+    color: ${Theme.colors.text.base};
   }
 `;
 
@@ -445,6 +494,7 @@ export default function AdminManagementTabNew(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [showAllUsers, setShowAllUsers] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<{ uid: string; email: string; currentName: string | null } | null>(null);
   const [editDisplayName, setEditDisplayName] = useState('');
   const [message, setMessage] = useState<{
@@ -1209,7 +1259,26 @@ export default function AdminManagementTabNew(): React.JSX.Element {
               View and manage existing users. Edit display names, remove dashboard access, or delete user accounts.
             </InfoBox>
 
-            <div style={{ marginBottom: Theme.spacing.lg }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: Theme.spacing.md, marginBottom: Theme.spacing.lg }}>
+              <SearchContainer>
+                <SearchIcon>
+                  <Search size={18} />
+                </SearchIcon>
+                <SearchInput
+                  type="text"
+                  placeholder="Search users by name, email, or role..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                />
+                {userSearchQuery && (
+                  <ClearButton
+                    onClick={() => setUserSearchQuery('')}
+                    title="Clear search"
+                  >
+                    <X size={18} />
+                  </ClearButton>
+                )}
+              </SearchContainer>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: Theme.typography.body, fontWeight: 500 }}>
                 <input
                   type="checkbox"
@@ -1229,11 +1298,43 @@ export default function AdminManagementTabNew(): React.JSX.Element {
               </EmptyState>
             ) : (
               <>
-                <div style={{ marginBottom: Theme.spacing.md, color: Theme.colors.text.muted, fontSize: Theme.typography.small }}>
-                  Showing {users.length} {showAllUsers ? 'user' : 'dashboard user'}{users.length !== 1 ? 's' : ''}
-                </div>
-                <UserList>
-                  {users.map((user) => (
+                {(() => {
+                  // Filter users based on search query
+                  const filteredUsers = users.filter(user => {
+                    if (!userSearchQuery.trim()) return true;
+                    
+                    const searchLower = userSearchQuery.toLowerCase();
+                    
+                    // Search by email
+                    if (user.email.toLowerCase().includes(searchLower)) return true;
+                    
+                    // Search by display name
+                    if (user.displayName?.toLowerCase().includes(searchLower)) return true;
+                    
+                    // Search by role names
+                    const roleNames = user.roles.map(roleId => {
+                      const role = ROLES[roleId];
+                      return role?.name || roleId;
+                    }).join(' ').toLowerCase();
+                    if (roleNames.includes(searchLower)) return true;
+                    
+                    return false;
+                  });
+
+                  return (
+                    <>
+                      <div style={{ marginBottom: Theme.spacing.md, color: Theme.colors.text.muted, fontSize: Theme.typography.small }}>
+                        Showing {filteredUsers.length} of {users.length} {showAllUsers ? 'user' : 'dashboard user'}{users.length !== 1 ? 's' : ''}
+                        {userSearchQuery && ` (filtered by "${userSearchQuery}")`}
+                      </div>
+                      {filteredUsers.length === 0 ? (
+                        <EmptyState>
+                          <Shield size={48} color={Theme.colors.text.muted} />
+                          <p>No users match your search</p>
+                        </EmptyState>
+                      ) : (
+                        <UserList>
+                          {filteredUsers.map((user) => (
                     <UserCard key={user.uid}>
                       <UserInfo>
                         <UserEmail>
@@ -1345,7 +1446,11 @@ export default function AdminManagementTabNew(): React.JSX.Element {
                       </UserActions>
                     </UserCard>
                   ))}
-                </UserList>
+                        </UserList>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             )}
           </>
