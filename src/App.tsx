@@ -26,6 +26,7 @@ import ToastContainer from './components/ui/ToastContainer';
 // Import custom hook
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { useToast } from "./hooks/useToast";
+import { PermissionsContext, createPermissionsValue } from "./hooks/usePermissions";
 
 // Import types
 import {
@@ -35,16 +36,22 @@ import {
   DonationSettings,
 } from "./types";
 
+// Import permissions
+import { Permission } from "./constants/roles";
+
 const db = getFirestore();
 
 export default function AdminDashboard(): React.JSX.Element {
   const {
     isAuthenticated,
-    isAdmin,
+    hasAccess,
     loading: authLoading,
     error: authError,
     login,
     logout,
+    userRoles,
+    permissions,
+    isSuperAdmin,
   } = useFirebaseAuth();
   const { toasts, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<string>("prayer");
@@ -202,8 +209,8 @@ export default function AdminDashboard(): React.JSX.Element {
     await logout();
   };
 
-  // Block access if authenticated but not admin
-  if (!authLoading && isAuthenticated && !isAdmin) {
+  // Block access if authenticated but no roles assigned
+  if (!authLoading && isAuthenticated && !hasAccess) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -222,12 +229,12 @@ export default function AdminDashboard(): React.JSX.Element {
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
           maxWidth: '500px'
         }}>
-          <h2 style={{ color: '#dc3545', marginBottom: '1rem' }}>⛔ Unauthorized Access</h2>
+          <h2 style={{ color: '#dc3545', marginBottom: '1rem' }}>⛔ No Access Assigned</h2>
           <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-            This dashboard is restricted to administrators only.
+            Your account has no roles or permissions assigned. Please contact your administrator to request access.
           </p>
           <p style={{ fontSize: '0.9rem', color: '#999', marginBottom: '2rem' }}>
-            If you believe this is an error, please contact your administrator.
+            If you believe this is an error, please contact your system administrator.
           </p>
           <button 
             onClick={handleLogout}
@@ -341,74 +348,79 @@ export default function AdminDashboard(): React.JSX.Element {
 
   // Removed secondary splash screen ("Preparing dashboard...") to prevent flicker
 
+  // Create permissions context value
+  const permissionsValue = createPermissionsValue(userRoles, permissions);
+
   return (
     <ErrorBoundary>
-      <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
-    <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
+      <PermissionsContext.Provider value={permissionsValue}>
+        <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+          <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
 
-        <SaveNotification status={saveStatus} />
-        
-        <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+          <SaveNotification status={saveStatus} />
+          
+          <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
 
-        <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <div
-          style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
-        >
-        {activeTab === "prayer" && (
-          <PrayerTimesTab
-            prayerTimes={prayerTimes}
-            onChange={setPrayerTimes}
-            onSave={savePrayerTimes}
-            saving={saving}
-            mosqueSettings={mosqueSettings}
-          />
-        )}
+          <div
+            style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
+          >
+            {activeTab === "prayer" && (
+              <PrayerTimesTab
+                prayerTimes={prayerTimes}
+                onChange={setPrayerTimes}
+                onSave={savePrayerTimes}
+                saving={saving}
+                mosqueSettings={mosqueSettings}
+              />
+            )}
 
-        {activeTab === "jumuah" && (
-          <JumuahTimesTab
-            jumuahTimes={jumuahTimes}
-            onChange={setJumuahTimes}
-            onSave={saveJumuahTimes}
-            saving={saving}
-          />
-        )}
+            {activeTab === "jumuah" && (
+              <JumuahTimesTab
+                jumuahTimes={jumuahTimes}
+                onChange={setJumuahTimes}
+                onSave={saveJumuahTimes}
+                saving={saving}
+              />
+            )}
 
-        {activeTab === "events" && (
-          <EventsTab saving={saving} onSaveStatusChange={showSaveStatus} />
-        )}
+            {activeTab === "events" && (
+              <EventsTab saving={saving} onSaveStatusChange={showSaveStatus} />
+            )}
 
-        {activeTab === 'donations' && (
-          <DonationsTab
-            donationSettings={donationSettings}
-            onSettingsChange={setDonationSettings}
-            onSaveSettings={saveDonationSettings}
-            saving={saving}
-            onSaveStatusChange={showSaveStatus}
-          />
-        )}
+            {activeTab === 'donations' && (
+              <DonationsTab
+                donationSettings={donationSettings}
+                onSettingsChange={setDonationSettings}
+                onSaveSettings={saveDonationSettings}
+                saving={saving}
+                onSaveStatusChange={showSaveStatus}
+              />
+            )}
 
-        {activeTab === 'notifications' && (
-          <NotificationsTab
-            saving={saving}
-            onSaveStatusChange={showSaveStatus}
-          />
-        )}
+            {activeTab === 'notifications' && (
+              <NotificationsTab
+                saving={saving}
+                onSaveStatusChange={showSaveStatus}
+              />
+            )}
 
-        {activeTab === 'admin' && (
-          <AdminManagementTab />
-        )}
+            {activeTab === 'admin' && (
+              <AdminManagementTab />
+            )}
 
-        {activeTab === "settings" && (
-          <MosqueSettingsTab
-            mosqueSettings={mosqueSettings}
-            onChange={setMosqueSettings}
-            onSave={saveMosqueSettings}
-            saving={saving}
-          />
-        )}
-      </div>
-    </div>
+            {activeTab === "settings" && (
+              <MosqueSettingsTab
+                mosqueSettings={mosqueSettings}
+                onChange={setMosqueSettings}
+                onSave={saveMosqueSettings}
+                saving={saving}
+              />
+            )}
+          </div>
+        </div>
+      </PermissionsContext.Provider>
     </ErrorBoundary>
   );
 }
