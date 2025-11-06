@@ -64,13 +64,6 @@ const SectionTitle = styled.h3`
   gap: ${Theme.spacing.sm};
 `;
 
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: ${Theme.spacing.lg};
-`;
-
 const Form = styled.div`
   display: flex;
   flex-direction: column;
@@ -129,6 +122,34 @@ const RoleCategory = styled.div`
   margin-bottom: ${Theme.spacing.xl};
   &:last-child {
     margin-bottom: 0;
+  }
+`;
+
+const AdvancedRolesToggle = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  width: 100%;
+  padding: ${Theme.spacing.md};
+  background: ${Theme.colors.surface.soft};
+  border: 2px dashed ${Theme.colors.border.base};
+  border-radius: ${Theme.radius.md};
+  color: ${Theme.colors.text.muted};
+  font-weight: 500;
+  font-size: ${Theme.typography.small};
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: ${Theme.spacing.md};
+
+  &:hover {
+    border-color: ${Theme.colors.brand.navy[700]};
+    color: ${Theme.colors.brand.navy[700]};
+    background: ${Theme.colors.surface.card};
+  }
+
+  &:active {
+    transform: scale(0.98);
   }
 `;
 
@@ -409,7 +430,7 @@ const InfoBox = styled.div`
 export default function AdminManagementTabNew(): React.JSX.Element {
   const { hasLegacyClaims, isSuperAdmin } = useFirebaseAuth();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
-  const [activeTab, setActiveTab] = useState<'create' | 'promote'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'assign' | 'manage'>('create');
   
   // Form fields
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -419,6 +440,7 @@ export default function AdminManagementTabNew(): React.JSX.Element {
   
   // Role selection
   const [selectedRoles, setSelectedRoles] = useState<RoleId[]>([]);
+  const [showAdvancedRoles, setShowAdvancedRoles] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -664,7 +686,7 @@ export default function AdminManagementTabNew(): React.JSX.Element {
   // Convenience: jump to Assign-to-Existing with prefilled email
   const startAssignRoles = (email: string) => {
     setExistingUserEmail(email);
-    setActiveTab('promote');
+    setActiveTab('assign');
     // optional scroll to the assign section
     try {
       document.getElementById('assign-existing-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -763,6 +785,26 @@ export default function AdminManagementTabNew(): React.JSX.Element {
   };
 
   const rolesByCategory = getRolesByCategory();
+  
+  // Define common roles (most frequently used)
+  const commonRoleIds: RoleId[] = [
+    RoleId.ADMIN,
+    RoleId.PRAYER_MANAGER,
+    RoleId.EVENTS_MANAGER,
+    RoleId.DONATIONS_MANAGER,
+    RoleId.NOTIFICATIONS_SENDER
+  ];
+  
+  // Define advanced roles (less frequently used, more granular)
+  const advancedRoleIds: RoleId[] = [
+    RoleId.PRAYER_VIEWER,
+    RoleId.EVENTS_EDITOR,
+    RoleId.EVENTS_VIEWER,
+    RoleId.CAMPAIGN_MANAGER,
+    RoleId.DONATIONS_VIEWER,
+    RoleId.NOTIFICATIONS_MANAGER,
+    RoleId.REPORT_VIEWER
+  ];
 
   return (
     <Container>
@@ -817,7 +859,7 @@ export default function AdminManagementTabNew(): React.JSX.Element {
       <Section>
         <SectionTitle>
           <UserPlus size={24} />
-          Add User / Assign Roles
+          User Management
         </SectionTitle>
 
         <TabContainer>
@@ -828,10 +870,16 @@ export default function AdminManagementTabNew(): React.JSX.Element {
             Create New User
           </TabButton>
           <TabButton
-            $active={activeTab === 'promote'}
-            onClick={() => setActiveTab('promote')}
+            $active={activeTab === 'assign'}
+            onClick={() => setActiveTab('assign')}
           >
-            Assign to Existing User
+            Assign Roles
+          </TabButton>
+          <TabButton
+            $active={activeTab === 'manage'}
+            onClick={() => setActiveTab('manage')}
+          >
+            Manage Users
           </TabButton>
         </TabContainer>
 
@@ -902,16 +950,63 @@ export default function AdminManagementTabNew(): React.JSX.Element {
                   </Message>
                 )}
 
+                {/* Common Roles Section */}
                 {Object.entries(rolesByCategory).map(([category, roles]) => {
-                  if (roles.length === 0) return null;
+                  // Filter to show only common roles
+                  const commonRoles = roles.filter(role => commonRoleIds.includes(role.id));
+                  
+                  if (commonRoles.length === 0) return null;
                   
                   return (
-                    <RoleCategory key={category}>
+                    <RoleCategory key={`${category}-common`}>
                       <CategoryTitle>
                         {category} Roles
                       </CategoryTitle>
                       <RoleCheckboxGroup>
-                        {roles.map((role) => (
+                        {commonRoles.map((role) => (
+                          <RoleCheckbox key={role.id}>
+                            <Checkbox
+                              checked={selectedRoles.includes(role.id)}
+                              onChange={() => handleRoleToggle(role.id)}
+                              disabled={loading}
+                            />
+                            <RoleInfo>
+                              <RoleName>
+                                <span>{role.icon}</span>
+                                {role.name}
+                              </RoleName>
+                              <RoleDescription>{role.description}</RoleDescription>
+                            </RoleInfo>
+                          </RoleCheckbox>
+                        ))}
+                      </RoleCheckboxGroup>
+                    </RoleCategory>
+                  );
+                })}
+
+                {/* Advanced Roles Toggle Button */}
+                <AdvancedRolesToggle 
+                  type="button"
+                  onClick={() => setShowAdvancedRoles(!showAdvancedRoles)}
+                >
+                  {showAdvancedRoles ? '▲' : '▼'} 
+                  {showAdvancedRoles ? 'Hide' : 'Show'} Advanced Roles ({advancedRoleIds.length})
+                </AdvancedRolesToggle>
+
+                {/* Advanced Roles Section (Conditionally Rendered) */}
+                {showAdvancedRoles && Object.entries(rolesByCategory).map(([category, roles]) => {
+                  // Filter to show only advanced roles
+                  const advancedRoles = roles.filter(role => advancedRoleIds.includes(role.id));
+                  
+                  if (advancedRoles.length === 0) return null;
+                  
+                  return (
+                    <RoleCategory key={`${category}-advanced`}>
+                      <CategoryTitle>
+                        {category} Roles (Advanced)
+                      </CategoryTitle>
+                      <RoleCheckboxGroup>
+                        {advancedRoles.map((role) => (
                           <RoleCheckbox key={role.id}>
                             <Checkbox
                               checked={selectedRoles.includes(role.id)}
@@ -965,7 +1060,7 @@ export default function AdminManagementTabNew(): React.JSX.Element {
               </FormActions>
             </Form>
           </>
-        ) : (
+        ) : activeTab === 'assign' ? (
           <>
             <div id="assign-existing-section" />
             <InfoBox>
@@ -998,16 +1093,63 @@ export default function AdminManagementTabNew(): React.JSX.Element {
                   </Message>
                 )}
 
+                {/* Common Roles Section */}
                 {Object.entries(rolesByCategory).map(([category, roles]) => {
-                  if (roles.length === 0) return null;
+                  // Filter to show only common roles
+                  const commonRoles = roles.filter(role => commonRoleIds.includes(role.id));
+                  
+                  if (commonRoles.length === 0) return null;
                   
                   return (
-                    <RoleCategory key={category}>
+                    <RoleCategory key={`${category}-common-existing`}>
                       <CategoryTitle>
                         {category} Roles
                       </CategoryTitle>
                       <RoleCheckboxGroup>
-                        {roles.map((role) => (
+                        {commonRoles.map((role) => (
+                          <RoleCheckbox key={role.id}>
+                            <Checkbox
+                              checked={selectedRoles.includes(role.id)}
+                              onChange={() => handleRoleToggle(role.id)}
+                              disabled={loading}
+                            />
+                            <RoleInfo>
+                              <RoleName>
+                                <span>{role.icon}</span>
+                                {role.name}
+                              </RoleName>
+                              <RoleDescription>{role.description}</RoleDescription>
+                            </RoleInfo>
+                          </RoleCheckbox>
+                        ))}
+                      </RoleCheckboxGroup>
+                    </RoleCategory>
+                  );
+                })}
+
+                {/* Advanced Roles Toggle Button */}
+                <AdvancedRolesToggle 
+                  type="button"
+                  onClick={() => setShowAdvancedRoles(!showAdvancedRoles)}
+                >
+                  {showAdvancedRoles ? '▲' : '▼'} 
+                  {showAdvancedRoles ? 'Hide' : 'Show'} Advanced Roles ({advancedRoleIds.length})
+                </AdvancedRolesToggle>
+
+                {/* Advanced Roles Section (Conditionally Rendered) */}
+                {showAdvancedRoles && Object.entries(rolesByCategory).map(([category, roles]) => {
+                  // Filter to show only advanced roles
+                  const advancedRoles = roles.filter(role => advancedRoleIds.includes(role.id));
+                  
+                  if (advancedRoles.length === 0) return null;
+                  
+                  return (
+                    <RoleCategory key={`${category}-advanced-existing`}>
+                      <CategoryTitle>
+                        {category} Roles (Advanced)
+                      </CategoryTitle>
+                      <RoleCheckboxGroup>
+                        {advancedRoles.map((role) => (
                           <RoleCheckbox key={role.id}>
                             <Checkbox
                               checked={selectedRoles.includes(role.id)}
@@ -1061,147 +1203,159 @@ export default function AdminManagementTabNew(): React.JSX.Element {
               </FormActions>
             </Form>
           </>
-        )}
+        ) : activeTab === 'manage' ? (
+          <>
+            <InfoBox>
+              View and manage existing users. Edit display names, remove dashboard access, or delete user accounts.
+            </InfoBox>
+
+            <div style={{ marginBottom: Theme.spacing.lg }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: Theme.typography.body, fontWeight: 500 }}>
+                <input
+                  type="checkbox"
+                  checked={showAllUsers}
+                  onChange={(e) => setShowAllUsers(e.target.checked)}
+                />
+                Show all users (including non-dashboard users)
+              </label>
+            </div>
+
+            {loadingUsers ? (
+              <Loading text="Loading users..." />
+            ) : users.length === 0 ? (
+              <EmptyState>
+                <Shield size={48} color={Theme.colors.text.muted} />
+                <p>No users found</p>
+              </EmptyState>
+            ) : (
+              <>
+                <div style={{ marginBottom: Theme.spacing.md, color: Theme.colors.text.muted, fontSize: Theme.typography.small }}>
+                  Showing {users.length} {showAllUsers ? 'user' : 'dashboard user'}{users.length !== 1 ? 's' : ''}
+                </div>
+                <UserList>
+                  {users.map((user) => (
+                    <UserCard key={user.uid}>
+                      <UserInfo>
+                        <UserEmail>
+                          <Shield size={20} color={Theme.colors.brand.navy[700]} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Email>{user.displayName || user.email}</Email>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setEditingUser({ uid: user.uid, email: user.email, currentName: user.displayName });
+                                  setEditDisplayName(user.displayName || '');
+                                  setTimeout(() => {
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }, 100);
+                                }}
+                                disabled={loading}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: loading ? 'not-allowed' : 'pointer',
+                                  padding: '4px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  opacity: loading ? 0.5 : 1,
+                                }}
+                                title="Edit display name"
+                              >
+                                <Edit2 size={14} color={Theme.colors.text.muted} />
+                              </button>
+                            </div>
+                            {user.displayName && (
+                              <SecondaryText>{user.email}</SecondaryText>
+                            )}
+                          </div>
+                        </UserEmail>
+                        <div>
+                          {user.roles.map((roleId) => {
+                            const role = ROLES[roleId];
+                            return (
+                              <RoleBadge key={roleId} $color={role?.color}>
+                                {role?.icon} {role?.name || roleId}
+                              </RoleBadge>
+                            );
+                          })}
+                          {user.roles.length === 0 && (
+                            <RoleBadge $color={Theme.colors.text.muted}>No Dashboard Access</RoleBadge>
+                          )}
+                        </div>
+                        <UserMeta>
+                          {user.permissions.length} permissions • Last sign in: {formatLastSignIn(user.lastSignIn)}
+                        </UserMeta>
+                      </UserInfo>
+                      <UserActions>
+                        {isSuperAdmin && !user.isSuperAdmin && user.roles.length > 0 && (
+                          <Button
+                            $variant="secondary"
+                            onClick={() => makeSuperAdmin(user.uid, user.email)}
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                            title="Grant Super Admin status"
+                          >
+                            <Shield size={16} />
+                            Make Super Admin
+                          </Button>
+                        )}
+                        {!user.isSuperAdmin && user.roles.length > 0 && (
+                          <Button
+                            $variant="secondary"
+                            onClick={() => removeUserRoles(user.uid, user.email)}
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                            title="Remove dashboard access"
+                          >
+                            <UserMinus size={16} />
+                            Remove Access
+                          </Button>
+                        )}
+                        {!user.isSuperAdmin && user.roles.length === 0 && (
+                          <Button 
+                            onClick={() => startAssignRoles(user.email)} 
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                          >
+                            Assign Roles
+                          </Button>
+                        )}
+                        {isSuperAdmin && !user.isSuperAdmin && (
+                          <Button
+                            onClick={() => deleteUserAccount(user.uid, user.email)}
+                            disabled={loading}
+                            style={{
+                              fontSize: '0.875rem',
+                              padding: '8px 12px',
+                              minHeight: '36px',
+                              background: 'transparent',
+                              color: '#dc2626',
+                              border: '1px solid #dc2626',
+                            }}
+                            title="Permanently delete this user account"
+                          >
+                            Delete
+                          </Button>
+                        )}
+                        {user.isSuperAdmin && (
+                          <RoleBadge $color="#dc2626">🔰 Protected</RoleBadge>
+                        )}
+                      </UserActions>
+                    </UserCard>
+                  ))}
+                </UserList>
+              </>
+            )}
+          </>
+        ) : null}
 
         {message && (
           <Message type={message.type}>
             <AlertCircle size={20} />
             {message.text}
           </Message>
-        )}
-      </Section>
-
-      <Section>
-        <SectionHeader>
-          <SectionTitle>
-            <Shield size={24} />
-            {showAllUsers ? 'All Users' : 'Current Users'} ({users.length})
-          </SectionTitle>
-          <div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={showAllUsers}
-                onChange={(e) => setShowAllUsers(e.target.checked)}
-              />
-              Show all users
-            </label>
-          </div>
-        </SectionHeader>
-
-        {loadingUsers ? (
-          <Loading text="Loading users..." />
-        ) : users.length === 0 ? (
-          <EmptyState>
-            <Shield size={48} color={Theme.colors.text.muted} />
-            <p>No users found</p>
-          </EmptyState>
-        ) : (
-          <UserList>
-            {users.map((user) => (
-              <UserCard key={user.uid}>
-                <UserInfo>
-                  <UserEmail>
-                    <Shield size={20} color={Theme.colors.brand.navy[700]} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Email>{user.displayName || user.email}</Email>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Edit clicked for user:', user.email);
-                            setEditingUser({ uid: user.uid, email: user.email, currentName: user.displayName });
-                            setEditDisplayName(user.displayName || '');
-                            // Scroll to top where the editor appears
-                            setTimeout(() => {
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }, 100);
-                          }}
-                          disabled={loading}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: 4,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            color: Theme.colors.brand.navy[700],
-                          }}
-                          title="Edit display name"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                      </div>
-                      {user.displayName && (
-                        <SecondaryText>{user.email}</SecondaryText>
-                      )}
-                    </div>
-                  </UserEmail>
-                  <div>
-                    {user.roles.map((roleId) => {
-                      const role = ROLES[roleId];
-                      return (
-                        <RoleBadge key={roleId} $color={role?.color}>
-                          {role?.icon} {role?.name || roleId}
-                        </RoleBadge>
-                      );
-                    })}
-                    {user.roles.length === 0 && (
-                      <RoleBadge $color={Theme.colors.text.muted}>No Dashboard Access</RoleBadge>
-                    )}
-                  </div>
-                  <UserMeta>
-                    {user.permissions.length} permissions • Last sign in: {formatLastSignIn(user.lastSignIn)}
-                  </UserMeta>
-                </UserInfo>
-                <UserActions>
-                  {!user.isSuperAdmin && user.roles.length > 0 && (
-                    <Button
-                      $variant="secondary"
-                      onClick={() => makeSuperAdmin(user.uid, user.email)}
-                      disabled={loading}
-                    >
-                      <Shield size={20} />
-                      Make Super Admin
-                    </Button>
-                  )}
-                  {!user.isSuperAdmin && user.roles.length > 0 && (
-                    <Button
-                      $variant="secondary"
-                      onClick={() => removeUserRoles(user.uid, user.email)}
-                      disabled={loading}
-                      style={{ fontSize: '0.875rem', padding: '8px 12px' }}
-                      title="Remove dashboard access"
-                    >
-                      <UserMinus size={16} />
-                      Remove Access
-                    </Button>
-                  )}
-                  {!user.isSuperAdmin && user.roles.length === 0 && (
-                    <Button onClick={() => startAssignRoles(user.email)} disabled={loading}>
-                      Assign Roles
-                    </Button>
-                  )}
-                  {isSuperAdmin && !user.isSuperAdmin && (
-                    <Button
-                      $variant="secondary"
-                      onClick={() => deleteUserAccount(user.uid, user.email)}
-                      disabled={loading}
-                      style={{ fontSize: '0.875rem', padding: '8px 12px', color: '#991b1b', borderColor: '#991b1b' }}
-                      title="Permanently delete this user account"
-                    >
-                      <UserMinus size={16} />
-                      Delete
-                    </Button>
-                  )}
-                  {user.isSuperAdmin && (
-                    <RoleBadge $color="#dc2626">🔰 Protected</RoleBadge>
-                  )}
-                </UserActions>
-              </UserCard>
-            ))}
-          </UserList>
         )}
       </Section>
     </Container>
