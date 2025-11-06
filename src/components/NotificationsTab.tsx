@@ -914,9 +914,9 @@ export default function NotificationsTab({
             <Label>Notification Image (Optional)</Label>
             <ImageUpload
               currentImageUrl={formData.image_url}
-              onImageUpload={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+              onImageUpload={(result) => setFormData(prev => ({ ...prev, image_url: result.url }))}
               onImageDelete={() => setFormData(prev => ({ ...prev, image_url: '' }))}
-              storagePath={`notifications/${Date.now()}`}
+              storageRoot="notifications/tmp"
               disabled={sending}
             />
             <HelpText>

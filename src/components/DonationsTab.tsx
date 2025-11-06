@@ -88,18 +88,18 @@ export default function DonationsTab({
           Settings
         </Tab>
         <Tab
-          $active={activeSubTab === 'analytics'}
-          onClick={() => setActiveSubTab('analytics')}
-        >
-          <BarChart3 size={18} />
-          Analytics
-        </Tab>
-        <Tab
           $active={activeSubTab === 'campaigns'}
           onClick={() => setActiveSubTab('campaigns')}
         >
           <Target size={18} />
           Campaigns
+        </Tab>
+        <Tab
+          $active={activeSubTab === 'analytics'}
+          onClick={() => setActiveSubTab('analytics')}
+        >
+          <BarChart3 size={18} />
+          Analytics
         </Tab>
       </TabContainer>
 

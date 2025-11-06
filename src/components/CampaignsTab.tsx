@@ -780,9 +780,9 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
               <Label>Campaign Image (Optional)</Label>
               <ImageUpload
                 currentImageUrl={formData.image_url}
-                onImageUpload={(url) => handleInputChange('image_url', url)}
+                onImageUpload={(result) => handleInputChange('image_url', result.url)}
                 onImageDelete={() => handleInputChange('image_url', '')}
-                storagePath={editingCampaign ? `campaigns/${editingCampaign.id}` : `campaigns/temp-${Date.now()}`}
+                storageRoot="campaigns/tmp"
                 disabled={saving}
               />
             </FormGroup>

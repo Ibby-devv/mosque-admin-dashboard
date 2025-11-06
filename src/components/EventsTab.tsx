@@ -1199,9 +1199,9 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
               <Label>Event Image (Optional)</Label>
               <ImageUpload
                 currentImageUrl={formData.image_url}
-                onImageUpload={(url) => handleInputChange('image_url', url)}
+                onImageUpload={(result) => handleInputChange('image_url', result.url)}
                 onImageDelete={() => handleInputChange('image_url', '')}
-                storagePath={editingEvent ? `events/${editingEvent.id}` : `events/temp-${Date.now()}`}
+                storageRoot="events/tmp"
                 disabled={saving}
               />
             </FormGroup>

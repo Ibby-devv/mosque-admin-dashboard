@@ -3,11 +3,17 @@ import { storage } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
+interface ImageUploadResult {
+  url: string;
+  path: string;
+  contentType: string;
+}
+
 interface ImageUploadProps {
   currentImageUrl?: string;
-  onImageUpload: (url: string) => void;
+  onImageUpload: (result: ImageUploadResult) => void;
   onImageDelete: () => void;
-  storagePath: string; // e.g., 'events/event123' or 'campaigns/campaign456'
+  storageRoot: string; // e.g., 'notifications/tmp' or 'events/tmp'
   disabled?: boolean;
 }
 
@@ -15,7 +21,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   currentImageUrl,
   onImageUpload,
   onImageDelete,
-  storagePath,
+  storageRoot,
   disabled = false,
 }) => {
   const [uploading, setUploading] = useState(false);
@@ -23,8 +29,15 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Generate unique filename with extension
+  const generateFilename = (originalName: string): string => {
+    const extension = originalName.split('.').pop()?.toLowerCase() || 'jpg';
+    const uuid = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    return `${uuid}.${extension}`;
+  };
+
   // Compress and resize image
-  const compressImage = async (file: File): Promise<Blob> => {
+  const compressImage = async (file: File): Promise<{ blob: Blob; contentType: string }> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -52,20 +65,25 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           canvas.width = width;
           canvas.height = height;
 
-          // Draw and compress
+          // Draw image
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Convert to blob with 75% quality
+          // Preserve PNG transparency, otherwise use JPEG
+          const isPng = file.type === 'image/png';
+          const outputType = isPng ? 'image/png' : 'image/jpeg';
+          const quality = isPng ? 0.9 : 0.75;
+
+          // Convert to blob
           canvas.toBlob(
             (blob) => {
               if (blob) {
-                resolve(blob);
+                resolve({ blob, contentType: outputType });
               } else {
                 reject(new Error('Failed to compress image'));
               }
             },
-            'image/jpeg',
-            0.75
+            outputType,
+            quality
           );
         };
         img.onerror = () => reject(new Error('Failed to load image'));
@@ -105,14 +123,18 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       setUploadProgress(0);
 
       // Compress image
-      const compressedBlob = await compressImage(file);
+      const { blob: compressedBlob, contentType } = await compressImage(file);
+
+      // Generate unique filename
+      const filename = generateFilename(file.name);
+      const storagePath = `${storageRoot}/${filename}`;
 
       // Create storage reference
-      const storageRef = ref(storage, `${storagePath}/image.jpg`);
+      const storageRef = ref(storage, storagePath);
 
       // Upload file
       const uploadTask = uploadBytesResumable(storageRef, compressedBlob, {
-        contentType: 'image/jpeg',
+        contentType,
       });
 
       // Monitor upload progress
@@ -130,7 +152,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         async () => {
           // Upload complete, get download URL
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          onImageUpload(downloadURL);
+          onImageUpload({
+            url: downloadURL,
+            path: storagePath,
+            contentType,
+          });
           setUploading(false);
           setUploadProgress(0);
         }
@@ -152,6 +178,39 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     e.target.value = '';
   };
 
+  // Parse storage path from Firebase Storage URL
+  const parseStoragePath = (url: string): string | null => {
+    try {
+      // Handle gs:// URLs
+      if (url.startsWith('gs://')) {
+        const noScheme = url.slice('gs://'.length);
+        const parts = noScheme.split('/');
+        parts.shift(); // Remove bucket name
+        return parts.join('/');
+      }
+
+      // Handle https firebasestorage.googleapis.com URLs
+      const urlObj = new URL(url);
+      if (urlObj.hostname.includes('firebasestorage.googleapis.com')) {
+        const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+        if (pathMatch) {
+          return decodeURIComponent(pathMatch[1]);
+        }
+      }
+
+      // Handle storage.googleapis.com URLs
+      if (urlObj.hostname === 'storage.googleapis.com') {
+        const parts = urlObj.pathname.split('/');
+        parts.shift(); // Remove leading empty string
+        parts.shift(); // Remove bucket name
+        return parts.join('/');
+      }
+    } catch (err) {
+      console.error('Error parsing storage path:', err);
+    }
+    return null;
+  };
+
   // Handle delete
   const handleDelete = async () => {
     if (!currentImageUrl) return;
@@ -161,9 +220,18 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     }
 
     try {
-      // Delete from Firebase Storage
-      const storageRef = ref(storage, `${storagePath}/image.jpg`);
-      await deleteObject(storageRef);
+      // Parse storage path from URL
+      const storagePath = parseStoragePath(currentImageUrl);
+      
+      if (storagePath) {
+        // Only delete from Storage if it's in tmp (live files are cleaned by server)
+        if (storagePath.includes('/tmp/')) {
+          const storageRef = ref(storage, storagePath);
+          await deleteObject(storageRef);
+        }
+      }
+      
+      // Always clear the URL in the form
       onImageDelete();
       setError(null);
     } catch (err: any) {
