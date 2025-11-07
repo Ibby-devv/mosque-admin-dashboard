@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../firebase';
 import { LoginFormProps } from '../types';
 
 const LoginContainer = styled.div`
@@ -113,26 +115,85 @@ const Button = styled.button`
   }
 `;
 
-const DemoNotice = styled.div`
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #dbeafe;
-  border: 1px solid #93c5fd;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  color: #1e40af;
+const ForgotPasswordLink = styled.button`
+  background: none;
+  border: none;
+  color: #1e3a8a;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 0.75rem;
+  text-decoration: underline;
+  width: 100%;
+  text-align: center;
+
+  &:hover {
+    color: #1e40af;
+  }
+
+  &:disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
 `;
+
+const SuccessMessage = styled.div`
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+`;
+
+
 
 export default function LoginForm({ onLogin, error: authError }: LoginFormProps): React.JSX.Element {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [resetEmailSent, setResetEmailSent] = useState<boolean>(false);
+  const [resetError, setResetError] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
+    setResetEmailSent(false);
+    setResetError('');
     await onLogin(email, password);
     setLoading(false);
+  };
+
+  const handleForgotPassword = async (): Promise<void> => {
+    if (!email) {
+      setResetError('Please enter your email address first');
+      return;
+    }
+
+    setLoading(true);
+    setResetError('');
+    setResetEmailSent(false);
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetEmailSent(true);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      
+      let errorMessage = 'Failed to send password reset email';
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      
+      setResetError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -169,17 +230,28 @@ export default function LoginForm({ onLogin, error: authError }: LoginFormProps)
             />
           </FormGroup>
 
-          {authError && <ErrorMessage>{authError}</ErrorMessage>}
+          {resetEmailSent && (
+            <SuccessMessage>
+              ✅ Password reset email sent! Check your inbox and spam folder.
+            </SuccessMessage>
+          )}
+
+          {(authError || resetError) && (
+            <ErrorMessage>{authError || resetError}</ErrorMessage>
+          )}
 
           <Button type="submit" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
-        </form>
 
-        <DemoNotice>
-          <strong>Note:</strong> Use the admin email and password you created in Firebase Authentication.
-        </DemoNotice>
-      </LoginCard>
+          <ForgotPasswordLink
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+          >
+            Forgot Password?
+          </ForgotPasswordLink>
+        </form>      </LoginCard>
     </LoginContainer>
   );
 }
