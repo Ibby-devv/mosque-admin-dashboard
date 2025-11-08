@@ -459,20 +459,20 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
     }
   }, [mosqueSettings]);
 
+  // Calculation methods using adhan package naming convention
   const calculationMethods = [
-    { value: 1, label: 'University of Islamic Sciences, Karachi' },
-    { value: 2, label: 'Islamic Society of North America (ISNA)' },
-    { value: 3, label: 'Muslim World League (MWL)' },
-    { value: 4, label: 'Umm Al-Qura University, Makkah' },
-    { value: 5, label: 'Egyptian General Authority of Survey' },
-    { value: 7, label: 'Institute of Geophysics, University of Tehran' },
-    { value: 8, label: 'Gulf Region' },
-    { value: 9, label: 'Kuwait' },
-    { value: 10, label: 'Qatar' },
-    { value: 11, label: 'Majlis Ugama Islam Singapura, Singapore' },
-    { value: 12, label: 'Union Organization islamic de France' },
-    { value: 13, label: 'Diyanet İşleri Başkanlığı, Turkey' },
-    { value: 14, label: 'Spiritual Administration of Muslims of Russia' },
+    { value: 'MuslimWorldLeague', label: 'Muslim World League (MWL)' },
+    { value: 'Egyptian', label: 'Egyptian General Authority of Survey' },
+    { value: 'Karachi', label: 'University of Islamic Sciences, Karachi' },
+    { value: 'UmmAlQura', label: 'Umm Al-Qura University, Makkah' },
+    { value: 'Dubai', label: 'Dubai' },
+    { value: 'MoonsightingCommittee', label: 'Moonsighting Committee' },
+    { value: 'NorthAmerica', label: 'Islamic Society of North America (ISNA)' },
+    { value: 'Kuwait', label: 'Kuwait' },
+    { value: 'Qatar', label: 'Qatar' },
+    { value: 'Singapore', label: 'Majlis Ugama Islam Singapura, Singapore' },
+    { value: 'Tehran', label: 'Institute of Geophysics, University of Tehran' },
+    { value: 'Turkey', label: 'Diyanet İşleri Başkanlığı, Turkey' },
   ];
 
   const hasErrors = !!errors.latitude || !!errors.longitude;
@@ -730,8 +730,8 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
         <FormGroup>
           <Label>Prayer Time Calculation Method</Label>
           <Select
-            value={mosqueSettings?.calculation_method || 3}
-            onChange={(e) => handleChange('calculation_method', parseInt(e.target.value))}
+            value={mosqueSettings?.calculation_method || 'MuslimWorldLeague'}
+            onChange={(e) => handleChange('calculation_method', e.target.value)}
           >
             {calculationMethods.map(method => (
               <option key={method.value} value={method.value}>
