@@ -15,7 +15,8 @@ import {
   getDoc,
   setDoc,
   query,
-  orderBy
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, EventCategory, EventCategoriesConfig } from '../types';
@@ -28,7 +29,7 @@ interface EventsTabProps {
 }
 
 // Helper function to check if event is in the past
-const isPastEvent = (eventDate: string): boolean => {
+const isPastEvent = (eventDate: any): boolean => {
   const today = new Date().toLocaleString('en-AU', {
     timeZone: 'Australia/Sydney',
     year: 'numeric',
@@ -37,7 +38,12 @@ const isPastEvent = (eventDate: string): boolean => {
   });
   const [day, month, year] = today.split('/');
   const todayFormatted = `${year}-${month}-${day}`;
-  return eventDate < todayFormatted;
+  
+  // Convert Timestamp to date string
+  const date = eventDate?.toDate ? eventDate.toDate() : new Date(eventDate);
+  const eventDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  
+  return eventDateStr < todayFormatted;
 };
 
 // Styled Components
@@ -534,7 +540,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     try {
       await setDoc(doc(db, 'eventCategories', 'default'), {
         categories: defaultCategories,
-        updated_at: new Date().toISOString()
+        updated_at: serverTimestamp()
       });
       setCategories(defaultCategories);
       console.log('✅ Default categories created');
@@ -613,7 +619,11 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   const openModal = (event?: Event) => {
     if (event) {
       setEditingEvent(event);
-      setFormData(event);
+      // Convert Timestamp to string for date input
+      const dateStr = event.date?.toDate 
+        ? event.date.toDate().toISOString().split('T')[0]
+        : event.date;
+      setFormData({ ...event, date: dateStr });
     } else {
       setEditingEvent(null);
       setFormData({
@@ -640,7 +650,13 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   };
 
   const handleInputChange = (field: keyof Event, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Convert date string to Timestamp for storage
+    if (field === 'date' && typeof value === 'string' && value) {
+      const dateObj = new Date(value + 'T00:00:00');
+      setFormData(prev => ({ ...prev, [field]: dateObj }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSaveEvent = async () => {
@@ -650,14 +666,12 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         return;
       }
 
-      const timestamp = new Date().toISOString();
-
       if (editingEvent) {
         // Update existing event
         const eventRef = doc(db, 'events', editingEvent.id);
         await updateDoc(eventRef, {
           ...formData,
-          updated_at: timestamp,
+          updated_at: serverTimestamp(),
         });
         console.log('Event updated:', editingEvent.id);
       } else {
@@ -665,8 +679,8 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         await addDoc(collection(db, 'events'), {
           ...formData,
           rsvp_count: 0,
-          created_at: timestamp,
-          updated_at: timestamp,
+          created_at: serverTimestamp(),
+          updated_at: serverTimestamp(),
         });
         console.log('New event created');
       }
@@ -688,7 +702,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     try {
       await updateDoc(doc(db, 'events', eventId), {
         is_active: false,
-        updated_at: new Date().toISOString(),
+        updated_at: serverTimestamp(),
       });
       console.log('Event cancelled:', eventId);
       onSaveStatusChange(true);
@@ -707,7 +721,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     try {
       await updateDoc(doc(db, 'events', eventId), {
         is_active: true,
-        updated_at: new Date().toISOString(),
+        updated_at: serverTimestamp(),
       });
       console.log('Event reactivated:', eventId);
       onSaveStatusChange(true);
@@ -782,7 +796,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
       
       await setDoc(categoriesRef, {
         categories: updatedCategories,
-        updated_at: new Date().toISOString()
+        updated_at: serverTimestamp()
       });
       
       console.log('✅ Category saved');
@@ -816,7 +830,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         
         await setDoc(categoriesRef, {
           categories: updatedCategories,
-          updated_at: new Date().toISOString()
+          updated_at: serverTimestamp()
         });
         
         console.log('✅ Category deleted');
@@ -855,7 +869,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     try {
       await setDoc(doc(db, 'eventCategories', 'default'), {
         categories: updatedCategories,
-        updated_at: new Date().toISOString()
+        updated_at: serverTimestamp()
       });
       setCategories(updatedCategories);
       onSaveStatusChange(true);
@@ -865,9 +879,9 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (timestamp: any): string => {
     try {
-      const date = new Date(dateString);
+      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('en-US', { 
         weekday: 'short',
         month: 'short', 
@@ -875,7 +889,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         year: 'numeric'
       });
     } catch {
-      return dateString;
+      return String(timestamp || '');
     }
   };
 

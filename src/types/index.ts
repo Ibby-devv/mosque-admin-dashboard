@@ -96,7 +96,7 @@ export interface Event {
   id: string;
   title: string;
   description: string;
-  date: string; // ISO date string (YYYY-MM-DD)
+  date: any; // Firestore Timestamp
   time: string; // e.g., "7:00 PM"
   location?: string;
   category: string;
@@ -106,8 +106,8 @@ export interface Event {
   rsvp_limit?: number;
   rsvp_count?: number;
   is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
+  created_at?: any; // Firestore Timestamp
+  updated_at?: any; // Firestore Timestamp
 }
 
 export interface EventCategory {
@@ -122,7 +122,7 @@ export interface EventCategory {
 // NEW: Event Categories Config (for Firestore document)
 export interface EventCategoriesConfig {
   categories: EventCategory[];
-  updated_at: string;
+  updated_at: any; // Firestore Timestamp
 }
 
 // Component Props Types
@@ -273,13 +273,13 @@ export interface Campaign {
   goal_amount: number; // In cents
   current_amount: number; // In cents
   currency: string;
-  start_date: string; // YYYY-MM-DD
-  end_date: string; // YYYY-MM-DD
+  start_date: any; // Firestore Timestamp
+  end_date: any; // Firestore Timestamp
   status: CampaignStatus;
   image_url?: string;
   is_visible_in_app: boolean;
-  created_at: any;
-  updated_at: any;
+  created_at: any; // Firestore Timestamp
+  updated_at: any; // Firestore Timestamp
 }
 
 // Recurring Donation
@@ -299,7 +299,7 @@ export interface RecurringDonation {
 
   // Status
   status: RecurringDonationStatus;
-  next_payment_date: string; // YYYY-MM-DD
+  next_payment_date: any; // Firestore Timestamp
 
   // Donation details
   donation_type_id: string;
