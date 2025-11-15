@@ -63,7 +63,7 @@ export interface PrayerTimes {
   isha_iqama_type: 'fixed' | 'offset';
   isha_iqama_offset?: number;
   
-  last_updated?: string;
+  last_updated?: any; // Firestore Timestamp
 }
 
 export interface JumuahTime {
@@ -73,7 +73,7 @@ export interface JumuahTime {
 
 export interface JumuahData {
   times: JumuahTime[];
-  last_updated: string;
+  last_updated: any; // Firestore Timestamp
 }
 
 export interface MosqueSettings {
@@ -89,7 +89,7 @@ export interface MosqueSettings {
   longitude?: number;
   calculation_method?: 'MuslimWorldLeague' | 'Egyptian' | 'Karachi' | 'UmmAlQura' | 'Dubai' | 'MoonsightingCommittee' | 'NorthAmerica' | 'Kuwait' | 'Qatar' | 'Singapore' | 'Tehran' | 'Turkey';
   auto_fetch_maghrib?: boolean;
-  last_updated?: string;
+  last_updated?: any; // Firestore Timestamp
 }
 
 export interface Event {
@@ -259,7 +259,7 @@ export interface Donation {
   admin_notes?: string;
 
   // Timestamps
-  date: string; // YYYY-MM-DD (Sydney timezone)
+  date: any; // Firestore Timestamp (Sydney timezone)
   created_at: any;
   completed_at?: any;
   updated_at: any;
