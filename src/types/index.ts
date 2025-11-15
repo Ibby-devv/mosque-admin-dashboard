@@ -1,5 +1,7 @@
 // Firebase Data Types
 
+import { Timestamp } from 'firebase/firestore';
+
 // ============================================================================
 // ROLE & PERMISSION TYPES
 // ============================================================================
@@ -63,7 +65,7 @@ export interface PrayerTimes {
   isha_iqama_type: 'fixed' | 'offset';
   isha_iqama_offset?: number;
   
-  last_updated?: any; // Firestore Timestamp
+  last_updated?: Timestamp;
 }
 
 export interface JumuahTime {
@@ -73,7 +75,7 @@ export interface JumuahTime {
 
 export interface JumuahData {
   times: JumuahTime[];
-  last_updated: any; // Firestore Timestamp
+  last_updated: Timestamp;
 }
 
 export interface MosqueSettings {
@@ -89,14 +91,14 @@ export interface MosqueSettings {
   longitude?: number;
   calculation_method?: 'MuslimWorldLeague' | 'Egyptian' | 'Karachi' | 'UmmAlQura' | 'Dubai' | 'MoonsightingCommittee' | 'NorthAmerica' | 'Kuwait' | 'Qatar' | 'Singapore' | 'Tehran' | 'Turkey';
   auto_fetch_maghrib?: boolean;
-  last_updated?: any; // Firestore Timestamp
+  last_updated?: Timestamp;
 }
 
 export interface Event {
   id: string;
   title: string;
   description: string;
-  date: any; // Firestore Timestamp
+  date: Timestamp;
   time: string; // e.g., "7:00 PM"
   location?: string;
   category: string;
@@ -106,8 +108,8 @@ export interface Event {
   rsvp_limit?: number;
   rsvp_count?: number;
   is_active: boolean;
-  created_at?: any; // Firestore Timestamp
-  updated_at?: any; // Firestore Timestamp
+  created_at?: Timestamp;
+  updated_at?: Timestamp;
 }
 
 export interface EventCategory {
@@ -122,7 +124,7 @@ export interface EventCategory {
 // NEW: Event Categories Config (for Firestore document)
 export interface EventCategoriesConfig {
   categories: EventCategory[];
-  updated_at: any; // Firestore Timestamp
+  updated_at: Timestamp;
 }
 
 // Component Props Types
@@ -219,7 +221,7 @@ export interface DonationSettings {
   // Tax settings
   is_dgr_registered: boolean;
 
-  updated_at: any;
+  updated_at: Timestamp;
 }
 
 // Main Donation Record
@@ -259,10 +261,10 @@ export interface Donation {
   admin_notes?: string;
 
   // Timestamps
-  date: any; // Firestore Timestamp (Sydney timezone)
-  created_at: any;
-  completed_at?: any;
-  updated_at: any;
+  date: Timestamp;
+  created_at: Timestamp;
+  completed_at?: Timestamp;
+  updated_at: Timestamp;
 }
 
 // Campaign
@@ -273,13 +275,13 @@ export interface Campaign {
   goal_amount: number; // In cents
   current_amount: number; // In cents
   currency: string;
-  start_date: any; // Firestore Timestamp
-  end_date: any; // Firestore Timestamp
+  start_date: Timestamp;
+  end_date: Timestamp;
   status: CampaignStatus;
   image_url?: string;
   is_visible_in_app: boolean;
-  created_at: any; // Firestore Timestamp
-  updated_at: any; // Firestore Timestamp
+  created_at: Timestamp;
+  updated_at: Timestamp;
 }
 
 // Recurring Donation
@@ -299,7 +301,7 @@ export interface RecurringDonation {
 
   // Status
   status: RecurringDonationStatus;
-  next_payment_date: any; // Firestore Timestamp
+  next_payment_date: Timestamp;
 
   // Donation details
   donation_type_id: string;
@@ -307,9 +309,9 @@ export interface RecurringDonation {
   campaign_id?: string;
 
   // Timestamps
-  created_at: any;
-  started_at: any;
-  cancelled_at?: any;
-  last_payment_at?: any;
+  created_at: Timestamp;
+  started_at: Timestamp;
+  cancelled_at?: Timestamp;
+  last_payment_at?: Timestamp;
   last_payment_donation_id?: string;
 }
