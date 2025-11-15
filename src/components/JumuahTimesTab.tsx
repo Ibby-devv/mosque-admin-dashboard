@@ -16,7 +16,7 @@ interface JumuahTime {
 
 interface JumuahData {
   times: JumuahTime[];
-  last_updated: string;
+  last_updated: any; // Firestore Timestamp
 }
 
 // Styled Components (Card imported from shared ui/Card)
@@ -331,7 +331,7 @@ export default function JumuahTimesTab({
   
   const [jumuahData, setJumuahData] = useState<JumuahData>({
     times: [],
-    last_updated: new Date().toISOString().split("T")[0],
+    last_updated: null,
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -349,7 +349,7 @@ export default function JumuahTimesTab({
       // Create default structure with one empty time
       setJumuahData({
         times: [{ id: "1", khutbah: "" }],
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: null,
       });
     }
   }, [jumuahTimes]);
@@ -399,7 +399,6 @@ export default function JumuahTimesTab({
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split("T")[0],
     };
 
     setJumuahData(updatedData);
@@ -418,7 +417,6 @@ export default function JumuahTimesTab({
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split("T")[0],
     };
 
     setJumuahData(updatedData);
