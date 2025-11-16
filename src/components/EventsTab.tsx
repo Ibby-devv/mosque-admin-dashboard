@@ -503,6 +503,9 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   const canEdit = hasPermission(Permission.EDIT_EVENTS);
   const canDelete = hasPermission(Permission.DELETE_EVENTS);
   
+  // Date validation regex - HTML date input uses YYYY-MM-DD format
+  const DATE_FORMAT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+  
   const [activeTab, setActiveTab] = useState<'events' | 'categories'>('events');
   const [events, setEvents] = useState<Event[]>([]);
   const [categories, setCategories] = useState<EventCategory[]>([]);
@@ -667,7 +670,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
       if (typeof formData.date === 'string') {
         // HTML date input provides YYYY-MM-DD format
         // Validate the format before processing
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+        if (!DATE_FORMAT_REGEX.test(formData.date)) {
           alert('Invalid date format detected. Please select a date from the date picker.');
           return;
         }
