@@ -662,32 +662,32 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         return;
       }
 
-      // Convert date string to Timestamp for storage
+      // Convert date to Timestamp for storage
       let dateToSave: Timestamp;
       if (typeof formData.date === 'string') {
         // HTML date input provides YYYY-MM-DD format
         // Validate the format before processing
         if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
-          alert('Invalid date format. Please use YYYY-MM-DD format.');
+          alert('Invalid date format detected. Please select a date from the date picker.');
           return;
         }
         const dateObj = new Date(formData.date + 'T00:00:00');
         if (isNaN(dateObj.getTime())) {
-          alert('The selected date is invalid. Please choose a valid date.');
+          alert('The selected date is invalid. Please choose a different date.');
           return;
         }
         dateToSave = Timestamp.fromDate(dateObj);
       } else if (formData.date instanceof Timestamp) {
         // Already a Timestamp (from editing existing event)
         dateToSave = formData.date;
+      } else if (formData.date && typeof formData.date === 'object' && 'toDate' in formData.date) {
+        // Firebase Timestamp-like object
+        dateToSave = formData.date as Timestamp;
       } else {
-        // Fallback: try to convert to Timestamp
-        const dateObj = (formData.date as any)?.toDate?.() || new Date(formData.date as any);
-        if (isNaN(dateObj.getTime())) {
-          alert('The selected date is invalid. Please choose a valid date.');
-          return;
-        }
-        dateToSave = Timestamp.fromDate(dateObj);
+        // Unexpected type - try to handle gracefully
+        console.error('Unexpected date type:', typeof formData.date, formData.date);
+        alert('Unable to process the date. Please select a new date from the date picker.');
+        return;
       }
 
       const eventData = {
