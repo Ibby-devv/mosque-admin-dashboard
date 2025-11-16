@@ -75,7 +75,7 @@ export interface JumuahTime {
 
 export interface JumuahData {
   times: JumuahTime[];
-  last_updated: Timestamp;
+  last_updated?: Timestamp;
 }
 
 export interface MosqueSettings {
