@@ -651,13 +651,8 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   };
 
   const handleInputChange = (field: keyof Event, value: any) => {
-    // Convert date string to Timestamp for storage
-    if (field === 'date' && typeof value === 'string' && value) {
-      const dateObj = new Date(value + 'T00:00:00');
-      setFormData(prev => ({ ...prev, [field]: dateObj }));
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    // Keep date as string for the input field, will convert to Timestamp on save
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSaveEvent = async () => {
@@ -667,18 +662,28 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         return;
       }
 
+      // Convert date string to Timestamp for storage
+      const dateToSave = typeof formData.date === 'string' 
+        ? Timestamp.fromDate(new Date(formData.date + 'T00:00:00'))
+        : formData.date;
+
+      const eventData = {
+        ...formData,
+        date: dateToSave,
+      };
+
       if (editingEvent) {
         // Update existing event
         const eventRef = doc(db, 'events', editingEvent.id);
         await updateDoc(eventRef, {
-          ...formData,
+          ...eventData,
           updated_at: serverTimestamp(),
         });
         console.log('Event updated:', editingEvent.id);
       } else {
         // Create new event
         await addDoc(collection(db, 'events'), {
-          ...formData,
+          ...eventData,
           rsvp_count: 0,
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
@@ -883,12 +888,15 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   const formatDate = (timestamp: Timestamp): string => {
     try {
       const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('en-AU', { 
-        weekday: 'short',
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      });
+      // Format as DD-MM-YYYY for Australian format
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      
+      // Get day of week for better readability
+      const dayName = date.toLocaleDateString('en-AU', { weekday: 'short' });
+      
+      return `${dayName}, ${day}-${month}-${year}`;
     } catch {
       return String(timestamp || '');
     }
