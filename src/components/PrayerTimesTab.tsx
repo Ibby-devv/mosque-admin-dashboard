@@ -526,11 +526,15 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
             <BannerTitle>🌍 Prayer Times Auto-Calculated</BannerTitle>
             <BannerText>
               Adhan times are automatically calculated from Aladhan API based on your mosque location.
-              {prayerTimes?.last_updated && ` Last updated: ${new Date(prayerTimes.last_updated).toLocaleDateString('en-AU', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}`}
+              {prayerTimes?.last_updated && ` Last updated: ${(() => {
+                const timestamp = prayerTimes.last_updated;
+                const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+                return date.toLocaleDateString('en-AU', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                });
+              })()}`}
             </BannerText>
           </BannerContent>
         </AutoFetchBanner>

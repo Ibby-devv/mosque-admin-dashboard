@@ -19,7 +19,8 @@ import {
   getDocs,
   query,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { usePermissions } from '../hooks/usePermissions';
@@ -455,11 +456,20 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
   const openModal = (campaign?: Campaign) => {
     if (campaign) {
       setEditingCampaign(campaign);
+      // Convert Timestamps to strings for date inputs
+      const startDateStr = campaign.start_date?.toDate 
+        ? campaign.start_date.toDate().toISOString().split('T')[0]
+        : campaign.start_date;
+      const endDateStr = campaign.end_date?.toDate 
+        ? campaign.end_date.toDate().toISOString().split('T')[0]
+        : campaign.end_date;
       setFormData({
         ...campaign,
         // Convert cents to dollars for display
         goal_amount: campaign.goal_amount / 100,
         current_amount: campaign.current_amount / 100,
+        start_date: startDateStr,
+        end_date: endDateStr,
       });
     } else {
       setEditingCampaign(null);
@@ -486,7 +496,13 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
   };
 
   const handleInputChange = (field: keyof Campaign, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // Convert date strings to Date objects for Timestamp fields
+    if ((field === 'start_date' || field === 'end_date') && typeof value === 'string' && value) {
+      const dateObj = new Date(value + 'T00:00:00');
+      setFormData(prev => ({ ...prev, [field]: dateObj }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
     // Clear error for this field
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -510,8 +526,18 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
       newErrors.start_date = 'Start date is required';
     }
 
-    if (formData.end_date && formData.start_date && formData.end_date < formData.start_date) {
-      newErrors.end_date = 'End date must be after start date';
+    if (formData.end_date && formData.start_date) {
+      // Convert to comparable format
+      const startTime = formData.start_date instanceof Date 
+        ? formData.start_date.getTime() 
+        : new Date(formData.start_date).getTime();
+      const endTime = formData.end_date instanceof Date 
+        ? formData.end_date.getTime() 
+        : new Date(formData.end_date).getTime();
+      
+      if (endTime < startTime) {
+        newErrors.end_date = 'End date must be after start date';
+      }
     }
 
     setErrors(newErrors);
@@ -581,16 +607,16 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
     return `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (timestamp: Timestamp): string => {
     try {
-      const date = new Date(dateString);
+      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('en-AU', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
       });
     } catch {
-      return dateString;
+      return String(timestamp || '');
     }
   };
 

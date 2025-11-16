@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { Save, Plus, Trash2, X } from "lucide-react";
-import { JumuahTimesTabProps } from "../types";
+import { JumuahTimesTabProps, JumuahTime, JumuahData } from "../types";
 import TimeInput from './TimeInput';
 import { Theme, media } from '../constants/theme';
 import Card from './ui/Card';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
-
-// Define the new data structure for Jumuah times
-interface JumuahTime {
-  id: string;
-  khutbah: string;
-}
-
-interface JumuahData {
-  times: JumuahTime[];
-  last_updated: string;
-}
 
 // Styled Components (Card imported from shared ui/Card)
 
@@ -331,7 +320,7 @@ export default function JumuahTimesTab({
   
   const [jumuahData, setJumuahData] = useState<JumuahData>({
     times: [],
-    last_updated: new Date().toISOString().split("T")[0],
+    last_updated: undefined,
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -349,7 +338,7 @@ export default function JumuahTimesTab({
       // Create default structure with one empty time
       setJumuahData({
         times: [{ id: "1", khutbah: "" }],
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: undefined,
       });
     }
   }, [jumuahTimes]);
@@ -399,7 +388,6 @@ export default function JumuahTimesTab({
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split("T")[0],
     };
 
     setJumuahData(updatedData);
@@ -418,7 +406,6 @@ export default function JumuahTimesTab({
     const updatedData = {
       ...jumuahData,
       times: updatedTimes,
-      last_updated: new Date().toISOString().split("T")[0],
     };
 
     setJumuahData(updatedData);

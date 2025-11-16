@@ -80,8 +80,6 @@ export default function AdminDashboard(): React.JSX.Element {
     isha_iqama: "9:00 PM",
     isha_iqama_type: "fixed",
     isha_iqama_offset: 15,
-
-    last_updated: new Date().toISOString().split("T")[0],
   });
 
   // New Jumuah data structure (times array). Start as null until loaded or edited.
@@ -98,7 +96,6 @@ export default function AdminDashboard(): React.JSX.Element {
     longitude: 151.2093,
     calculation_method: 3,
     auto_fetch_maghrib: false,
-    last_updated: new Date().toISOString().split("T")[0],
   });
 
   // Donation settings state
@@ -262,10 +259,10 @@ export default function AdminDashboard(): React.JSX.Element {
     try {
       const updatedPrayerTimes: PrayerTimes = {
         ...prayerTimes,
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "prayerTimes", "current"), updatedPrayerTimes);
-      setPrayerTimes(updatedPrayerTimes);
+      // Don't set serverTimestamp() sentinel in local state - it will be updated via snapshot listener
       showSaveStatus(true);
     } catch (error) {
       console.error("Error saving prayer times:", error);
@@ -285,10 +282,10 @@ export default function AdminDashboard(): React.JSX.Element {
 
       const updatedJumuah: JumuahData = {
         ...jumuahTimes,
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "jumuahTimes", "current"), updatedJumuah);
-      setJumuahTimes(updatedJumuah);
+      // Don't set serverTimestamp() sentinel in local state - it will be updated via snapshot listener
       showSaveStatus(true);
     } catch (error) {
       console.error("Error saving Jumuah times:", error);
@@ -303,10 +300,10 @@ export default function AdminDashboard(): React.JSX.Element {
     try {
       const updatedSettings: MosqueSettings = {
         ...mosqueSettings,
-        last_updated: new Date().toISOString().split("T")[0],
+        last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "mosqueSettings", "info"), updatedSettings);
-      setMosqueSettings(updatedSettings);
+      // Don't set serverTimestamp() sentinel in local state - keep current state
       showSaveStatus(true);
     } catch (error) {
       console.error("Error saving mosque settings:", error);

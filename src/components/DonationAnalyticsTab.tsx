@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Download, RefreshCw, DollarSign, TrendingUp, Calendar, Repeat } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Timestamp } from 'firebase/firestore';
 import Card from './ui/Card';
 import { Theme, media } from '../constants/theme';
 
@@ -24,8 +25,8 @@ interface DonationRecord {
   donation_type_label: string;
   payment_status: string;
   is_recurring: boolean;
-  date: string;
-  created_at: any;
+  date: Timestamp;
+  created_at: Timestamp;
 }
 
 interface RecurringDonationRecord {
@@ -263,6 +264,16 @@ const getDateRange = (period: 'today' | 'week' | 'month' | 'year') => {
   return { start: today, end: today };
 };
 
+// Convert Firestore Timestamp to YYYY-MM-DD string
+const timestampToDateString = (timestamp: Timestamp): string => {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Calculate donations for a period
 const calculatePeriodTotal = (
   donations: DonationRecord[],
@@ -270,11 +281,11 @@ const calculatePeriodTotal = (
   endDate: string
 ): number => {
   return donations
-    .filter(d => 
-      d.payment_status === 'succeeded' &&
-      d.date >= startDate &&
-      d.date <= endDate
-    )
+    .filter(d => {
+      if (d.payment_status !== 'succeeded') return false;
+      const dateStr = timestampToDateString(d.date);
+      return dateStr >= startDate && dateStr <= endDate;
+    })
     .reduce((sum, d) => sum + d.amount, 0);
 };
 
@@ -330,7 +341,7 @@ export default function DonationAnalyticsTab({
       .filter(d => d.payment_status === 'succeeded')
       .map(d => ({
         'Receipt Number': d.receipt_number,
-        'Date': d.date,
+        'Date': timestampToDateString(d.date),
         'Donor Name': d.donor_name,
         'Donor Email': d.donor_email,
         'Amount': `$${(d.amount / 100).toFixed(2)}`,
@@ -357,17 +368,17 @@ export default function DonationAnalyticsTab({
     return `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Format date
-  const formatDate = (dateString: string): string => {
+  // Format date - handles both Timestamp and string
+  const formatDate = (timestamp: Timestamp): string => {
     try {
-      const date = new Date(dateString);
+      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('en-AU', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
       });
     } catch {
-      return dateString;
+      return String(timestamp || '');
     }
   };
 
