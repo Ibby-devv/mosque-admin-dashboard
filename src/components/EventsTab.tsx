@@ -16,7 +16,8 @@ import {
   setDoc,
   query,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, EventCategory, EventCategoriesConfig } from '../types';
@@ -29,7 +30,7 @@ interface EventsTabProps {
 }
 
 // Helper function to check if event is in the past
-const isPastEvent = (eventDate: any): boolean => {
+const isPastEvent = (eventDate: Timestamp): boolean => {
   const today = new Date().toLocaleString('en-AU', {
     timeZone: 'Australia/Sydney',
     year: 'numeric',
@@ -879,7 +880,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
-  const formatDate = (timestamp: any): string => {
+  const formatDate = (timestamp: Timestamp): string => {
     try {
       const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('en-AU', { 

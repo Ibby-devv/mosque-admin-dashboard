@@ -320,7 +320,7 @@ export default function JumuahTimesTab({
   
   const [jumuahData, setJumuahData] = useState<JumuahData>({
     times: [],
-    last_updated: null,
+    last_updated: undefined,
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -338,7 +338,7 @@ export default function JumuahTimesTab({
       // Create default structure with one empty time
       setJumuahData({
         times: [{ id: "1", khutbah: "" }],
-        last_updated: null,
+        last_updated: undefined,
       });
     }
   }, [jumuahTimes]);

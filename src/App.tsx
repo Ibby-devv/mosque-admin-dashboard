@@ -262,7 +262,7 @@ export default function AdminDashboard(): React.JSX.Element {
         last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "prayerTimes", "current"), updatedPrayerTimes);
-      setPrayerTimes(updatedPrayerTimes);
+      // Don't set serverTimestamp() sentinel in local state - it will be updated via snapshot listener
       showSaveStatus(true);
     } catch (error) {
       console.error("Error saving prayer times:", error);
@@ -285,7 +285,7 @@ export default function AdminDashboard(): React.JSX.Element {
         last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "jumuahTimes", "current"), updatedJumuah);
-      setJumuahTimes(updatedJumuah);
+      // Don't set serverTimestamp() sentinel in local state - it will be updated via snapshot listener
       showSaveStatus(true);
     } catch (error) {
       console.error("Error saving Jumuah times:", error);
@@ -303,7 +303,7 @@ export default function AdminDashboard(): React.JSX.Element {
         last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "mosqueSettings", "info"), updatedSettings);
-      setMosqueSettings(updatedSettings);
+      // Don't set serverTimestamp() sentinel in local state - keep current state
       showSaveStatus(true);
     } catch (error) {
       console.error("Error saving mosque settings:", error);
