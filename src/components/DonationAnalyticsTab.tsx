@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Download, RefreshCw, DollarSign, TrendingUp, Calendar, Repeat } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Timestamp } from 'firebase/firestore';
 import Card from './ui/Card';
 import { Theme, media } from '../constants/theme';
 
@@ -24,8 +25,8 @@ interface DonationRecord {
   donation_type_label: string;
   payment_status: string;
   is_recurring: boolean;
-  date: any; // Firestore Timestamp
-  created_at: any;
+  date: Timestamp;
+  created_at: Timestamp;
 }
 
 interface RecurringDonationRecord {
@@ -264,7 +265,7 @@ const getDateRange = (period: 'today' | 'week' | 'month' | 'year') => {
 };
 
 // Convert Firestore Timestamp to YYYY-MM-DD string
-const timestampToDateString = (timestamp: any): string => {
+const timestampToDateString = (timestamp: Timestamp): string => {
   if (!timestamp) return '';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   const year = date.getFullYear();
@@ -368,7 +369,7 @@ export default function DonationAnalyticsTab({
   };
 
   // Format date - handles both Timestamp and string
-  const formatDate = (timestamp: any): string => {
+  const formatDate = (timestamp: Timestamp): string => {
     try {
       const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('en-AU', {
