@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { Save, Plus, Trash2, X } from "lucide-react";
-import { JumuahTimesTabProps } from "../types";
+import { JumuahTimesTabProps, JumuahTime, JumuahData } from "../types";
 import TimeInput from './TimeInput';
 import { Theme, media } from '../constants/theme';
 import Card from './ui/Card';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
-
-// Define the new data structure for Jumuah times
-interface JumuahTime {
-  id: string;
-  khutbah: string;
-}
-
-interface JumuahData {
-  times: JumuahTime[];
-  last_updated: any; // Firestore Timestamp
-}
 
 // Styled Components (Card imported from shared ui/Card)
 
