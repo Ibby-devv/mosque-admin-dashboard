@@ -457,12 +457,28 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
     if (campaign) {
       setEditingCampaign(campaign);
       // Convert Timestamps to strings for date inputs
-      const startDateStr = campaign.start_date?.toDate 
-        ? campaign.start_date.toDate().toISOString().split('T')[0]
-        : campaign.start_date;
-      const endDateStr = campaign.end_date?.toDate 
-        ? campaign.end_date.toDate().toISOString().split('T')[0]
-        : campaign.end_date;
+      // Use local date components to avoid timezone shifts
+      let startDateStr = '';
+      if (campaign.start_date?.toDate) {
+        const date = campaign.start_date.toDate();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        startDateStr = `${year}-${month}-${day}`;
+      } else if (typeof campaign.start_date === 'string') {
+        startDateStr = campaign.start_date;
+      }
+      
+      let endDateStr = '';
+      if (campaign.end_date?.toDate) {
+        const date = campaign.end_date.toDate();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        endDateStr = `${year}-${month}-${day}`;
+      } else if (typeof campaign.end_date === 'string') {
+        endDateStr = campaign.end_date;
+      }
       setFormData({
         ...campaign,
         // Convert cents to dollars for display
@@ -473,13 +489,20 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
       });
     } else {
       setEditingCampaign(null);
+      // Get today's date in local timezone for default start date
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+      
       setFormData({
         title: '',
         description: '',
         goal_amount: 0,
         current_amount: 0,
         currency: 'AUD',
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: todayStr,
         end_date: '',
         status: 'active',
         image_url: '',

@@ -624,9 +624,17 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     if (event) {
       setEditingEvent(event);
       // Convert Timestamp to string for date input
-      const dateStr = event.date?.toDate 
-        ? event.date.toDate().toISOString().split('T')[0]
-        : event.date;
+      // Use local date components to avoid timezone shifts
+      let dateStr = '';
+      if (event.date?.toDate) {
+        const date = event.date.toDate();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        dateStr = `${year}-${month}-${day}`;
+      } else if (typeof event.date === 'string') {
+        dateStr = event.date;
+      }
       setFormData({ ...event, date: dateStr });
     } else {
       setEditingEvent(null);

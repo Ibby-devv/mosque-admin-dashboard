@@ -359,7 +359,12 @@ export default function DonationAnalyticsTab({
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `donations-${new Date().toISOString().split('T')[0]}.csv`;
+    // Use local date for filename to match user's timezone
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    a.download = `donations-${year}-${month}-${day}.csv`;
     a.click();
   };
 
