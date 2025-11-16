@@ -663,9 +663,23 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
       }
 
       // Convert date string to Timestamp for storage
-      const dateToSave = typeof formData.date === 'string' 
-        ? Timestamp.fromDate(new Date(formData.date + 'T00:00:00'))
-        : formData.date;
+      let dateToSave: Timestamp;
+      if (typeof formData.date === 'string') {
+        // HTML date input provides YYYY-MM-DD format
+        // Validate the format before processing
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+          alert('Invalid date format. Please select a valid date.');
+          return;
+        }
+        const dateObj = new Date(formData.date + 'T00:00:00');
+        if (isNaN(dateObj.getTime())) {
+          alert('Invalid date. Please select a valid date.');
+          return;
+        }
+        dateToSave = Timestamp.fromDate(dateObj);
+      } else {
+        dateToSave = formData.date;
+      }
 
       const eventData = {
         ...formData,
@@ -887,7 +901,23 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
 
   const formatDate = (timestamp: Timestamp): string => {
     try {
-      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+      // Handle both Timestamp objects and fallback dates
+      let date: Date;
+      if (timestamp?.toDate) {
+        date = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        date = timestamp;
+      } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+        date = new Date(timestamp);
+      } else {
+        return String(timestamp || '');
+      }
+      
+      // Validate the date is valid
+      if (isNaN(date.getTime())) {
+        return String(timestamp || '');
+      }
+      
       // Format as DD-MM-YYYY for Australian format
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
