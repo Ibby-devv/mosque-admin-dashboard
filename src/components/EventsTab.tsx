@@ -882,7 +882,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   const formatDate = (timestamp: any): string => {
     try {
       const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('en-US', { 
+      return date.toLocaleDateString('en-AU', { 
         weekday: 'short',
         month: 'short', 
         day: 'numeric',
