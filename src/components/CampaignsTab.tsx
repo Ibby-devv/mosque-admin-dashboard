@@ -519,13 +519,7 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
   };
 
   const handleInputChange = (field: keyof Campaign, value: any) => {
-    // Convert date strings to Date objects for Timestamp fields
-    if ((field === 'start_date' || field === 'end_date') && typeof value === 'string' && value) {
-      const dateObj = new Date(value + 'T00:00:00');
-      setFormData(prev => ({ ...prev, [field]: dateObj }));
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error for this field
     if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -574,12 +568,20 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
 
     try {
 
-      // Convert dollars to cents for storage
-      const campaignData = {
+      // Convert dollars to cents and dates to Timestamps for storage
+      const campaignData: any = {
         ...formData,
         goal_amount: Math.round((formData.goal_amount || 0) * 100),
         current_amount: Math.round((formData.current_amount || 0) * 100),
       };
+      
+      // Convert date strings to Firestore Timestamps
+      if (formData.start_date) {
+        campaignData.start_date = Timestamp.fromDate(new Date(formData.start_date + 'T00:00:00'));
+      }
+      if (formData.end_date) {
+        campaignData.end_date = Timestamp.fromDate(new Date(formData.end_date + 'T00:00:00'));
+      }
 
       if (editingCampaign) {
         // Update existing campaign
