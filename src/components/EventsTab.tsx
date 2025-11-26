@@ -29,6 +29,22 @@ interface EventsTabProps {
   onSaveStatusChange: (success: boolean) => void;
 }
 
+// Form data type that uses string for date (HTML date input format)
+interface EventFormData {
+  title: string;
+  description: string;
+  date: string; // YYYY-MM-DD format from HTML date input
+  time: string;
+  location: string;
+  category: string;
+  speaker: string;
+  image_url: string;
+  rsvp_enabled: boolean;
+  rsvp_limit: number;
+  rsvp_count?: number;
+  is_active: boolean;
+}
+
 // Helper function to check if event is in the past
 const isPastEvent = (eventDate: Timestamp): boolean => {
   const today = new Date().toLocaleString('en-AU', {
@@ -41,7 +57,7 @@ const isPastEvent = (eventDate: Timestamp): boolean => {
   const todayFormatted = `${year}-${month}-${day}`;
   
   // Convert Timestamp to date string
-  const date = eventDate?.toDate ? eventDate.toDate() : new Date(eventDate);
+  const date = eventDate.toDate();
   const eventDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   
   return eventDateStr < todayFormatted;
@@ -514,7 +530,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [editingCategory, setEditingCategory] = useState<EventCategory | null>(null);
-  const [formData, setFormData] = useState<Partial<Event>>({
+  const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
     date: '',
@@ -635,7 +651,20 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
       } else if (typeof event.date === 'string') {
         dateStr = event.date;
       }
-      setFormData({ ...event, date: dateStr });
+      setFormData({
+        title: event.title,
+        description: event.description,
+        date: dateStr,
+        time: event.time,
+        location: event.location || '',
+        category: event.category,
+        speaker: event.speaker || '',
+        image_url: event.image_url || '',
+        rsvp_enabled: event.rsvp_enabled || false,
+        rsvp_limit: event.rsvp_limit || 0,
+        rsvp_count: event.rsvp_count || 0,
+        is_active: event.is_active,
+      });
     } else {
       setEditingEvent(null);
       setFormData({
@@ -661,7 +690,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     setEditingEvent(null);
   };
 
-  const handleInputChange = (field: keyof Event, value: any) => {
+  const handleInputChange = (field: keyof EventFormData, value: string | boolean | number) => {
     // Keep date as string for the input field, will convert to Timestamp on save
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -673,37 +702,61 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         return;
       }
 
-      // Convert date to Timestamp for storage
+      // Convert date to Timestamp for storage using mosque timezone
       let dateToSave: Timestamp;
-      if (typeof formData.date === 'string') {
-        // HTML date input provides YYYY-MM-DD format
-        // Validate the format before processing
-        if (!DATE_FORMAT_REGEX.test(formData.date)) {
-          alert('Invalid date format detected. Please select a date from the date picker.');
-          return;
-        }
-        const dateObj = new Date(formData.date + 'T00:00:00');
-        if (isNaN(dateObj.getTime())) {
-          alert('The selected date is invalid. Please choose a different date.');
-          return;
-        }
-        dateToSave = Timestamp.fromDate(dateObj);
-      } else if (formData.date instanceof Timestamp) {
-        // Already a Timestamp (from editing existing event)
-        dateToSave = formData.date;
-      } else if (formData.date && typeof formData.date === 'object' && 'toDate' in formData.date) {
-        // Firebase Timestamp-like object
-        dateToSave = formData.date as Timestamp;
-      } else {
-        // Unexpected type - try to handle gracefully
-        console.error('Unexpected date type:', typeof formData.date, formData.date);
-        alert('Unable to process the date. Please select a new date from the date picker.');
+      // HTML date input provides YYYY-MM-DD format
+      // Validate the format before processing
+      if (!DATE_FORMAT_REGEX.test(formData.date)) {
+        alert('Invalid date format detected. Please select a date from the date picker.');
         return;
       }
+      
+        // Parse YYYY-MM-DD and create date at midnight UTC
+        // This ensures the event date is stored in a timezone-neutral way
+        // The mobile app will display it in the mosque's timezone
+      const [year, month, day] = formData.date.split('-').map(Number);
+      
+        // Create UTC date at midnight - this is timezone-neutral for "whole day" events
+        // We use Date.UTC() to create midnight in UTC, not the admin's local timezone
+        const dateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      
+      if (isNaN(dateObj.getTime())) {
+        alert('The selected date is invalid. Please choose a different date.');
+        return;
+      }
+      dateToSave = Timestamp.fromDate(dateObj);
+
+      // Parse time string into 24h hour/minute
+      const parseTime = (t: string): { hour: number; minute: number } => {
+        const trimmed = t.trim();
+        const ampmMatch = /^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/.exec(trimmed);
+        if (ampmMatch) {
+          let hour = parseInt(ampmMatch[1], 10);
+          const minute = parseInt(ampmMatch[2], 10);
+          const ampm = ampmMatch[3].toLowerCase();
+          if (ampm === 'pm' && hour !== 12) hour += 12;
+          if (ampm === 'am' && hour === 12) hour = 0;
+          return { hour, minute };
+        }
+        const hmMatch = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
+        if (hmMatch) {
+          return { hour: parseInt(hmMatch[1], 10), minute: parseInt(hmMatch[2], 10) };
+        }
+        // Fallback: 00:00
+        return { hour: 0, minute: 0 };
+      };
+
+      const { hour, minute } = parseTime(String(formData.time || '00:00'));
+
+      // Create UTC Date for start of event including time
+      const [syear, smonth, sday] = formData.date.split('-').map(Number);
+      const startDateObj = new Date(Date.UTC(syear, smonth - 1, sday, hour, minute, 0, 0));
+      const startDateTs = Timestamp.fromDate(startDateObj);
 
       const eventData = {
         ...formData,
         date: dateToSave,
+        start_date: startDateTs,
       };
 
       if (editingEvent) {
