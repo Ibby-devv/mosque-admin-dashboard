@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle } from 'lucide-react';
+import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle, Clock } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { MosqueSettingsTabProps } from '../types';
 import { Theme, media } from '../constants/theme';
@@ -380,6 +380,46 @@ interface GeocodeResult {
   formatted_address: string;
 }
 
+// Curated list of common timezones for Muslim-majority regions
+const COMMON_TIMEZONES = [
+  'Australia/Sydney',
+  'Australia/Melbourne',
+  'Australia/Brisbane',
+  'Australia/Perth',
+  'Australia/Adelaide',
+  'Asia/Dubai',
+  'Asia/Riyadh',
+  'Asia/Kuwait',
+  'Asia/Qatar',
+  'Asia/Karachi',
+  'Asia/Dhaka',
+  'Asia/Kolkata',
+  'Asia/Jakarta',
+  'Asia/Kuala_Lumpur',
+  'Asia/Singapore',
+  'Europe/London',
+  'Europe/Istanbul',
+  'America/New_York',
+  'America/Chicago',
+  'America/Los_Angeles',
+  'America/Toronto',
+];
+
+// Helper to format timezone for display
+const formatTimezoneLabel = (tz: string): string => {
+  const city = tz.split('/').pop()?.replace(/_/g, ' ') || tz;
+  try {
+    const offset = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'short',
+    }).formatToParts(new Date())
+      .find(part => part.type === 'timeZoneName')?.value || '';
+    return `${city} (${offset})`;
+  } catch {
+    return city;
+  }
+};
+
 export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, saving }: MosqueSettingsTabProps): React.JSX.Element {
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission(Permission.EDIT_MOSQUE_SETTINGS);
@@ -388,6 +428,30 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeResult, setGeocodeResult] = useState<{ success: boolean; message: string } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Get all available timezones from Intl API
+  const allTimezones = useMemo(() => {
+    try {
+      // TypeScript doesn't know about this new API yet, but it exists in modern browsers
+      return (Intl as any).supportedValuesOf('timeZone') as string[];
+    } catch {
+      // Fallback for older browsers
+      return COMMON_TIMEZONES;
+    }
+  }, []);
+
+  // Group timezones by region for better UX
+  const timezonesByRegion = useMemo(() => {
+    const grouped: Record<string, string[]> = {};
+    allTimezones.forEach((tz: string) => {
+      const region = tz.split('/')[0];
+      if (!grouped[region]) {
+        grouped[region] = [];
+      }
+      grouped[region].push(tz);
+    });
+    return grouped;
+  }, [allTimezones]);
 
   const validateCoordinate = (value: string | number | undefined, type: 'latitude' | 'longitude'): string => {
     if (value === undefined || value === null || value === '') return '';
@@ -741,6 +805,49 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
           </Select>
           <HelpText>
             This determines how prayer times are calculated. MWL (Muslim World League) is commonly used globally.
+          </HelpText>
+        </FormGroup>
+
+        <SectionTitle>
+          <Clock size={20} />
+          Timezone Settings
+        </SectionTitle>
+
+        <InfoBox>
+          <strong>🌍 Timezone affects all date and time displays</strong>
+          <div style={{ marginTop: '0.5rem' }}>
+            This timezone will be used for displaying dates, calculating "next prayer" countdowns, and showing event times in the mobile app.
+            If not set, the app defaults to Australia/Sydney.
+          </div>
+        </InfoBox>
+
+        <FormGroup>
+          <Label>Timezone</Label>
+          <Select
+            value={mosqueSettings?.timezone || 'Australia/Sydney'}
+            onChange={(e) => handleChange('timezone', e.target.value)}
+          >
+            <optgroup label="Common Timezones">
+              {COMMON_TIMEZONES.map(tz => (
+                <option key={tz} value={tz}>
+                  {formatTimezoneLabel(tz)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="All Timezones (Grouped by Region)">
+              {Object.entries(timezonesByRegion).map(([region, timezones]) => (
+                <optgroup key={region} label={`─── ${region} ───`}>
+                  {timezones.map((tz: string) => (
+                    <option key={tz} value={tz}>
+                      {formatTimezoneLabel(tz)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </optgroup>
+          </Select>
+          <HelpText>
+            Select the IANA timezone for your mosque location. This ensures accurate time displays across different devices.
           </HelpText>
         </FormGroup>
       </SettingsForm>
