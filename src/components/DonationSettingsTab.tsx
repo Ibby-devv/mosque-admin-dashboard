@@ -3,8 +3,8 @@
 // Location: mosque-admin-dashboard/src/components/DonationSettingsTab.tsx
 // ============================================================================
 
-import React, { useState } from 'react';
-import styled from 'styled-components';
+import React, { useState, useRef, useEffect } from 'react';
+import styled, { css, keyframes } from 'styled-components';
 import { Save, Plus, Trash2, Edit2, X } from 'lucide-react';
 import { DonationSettings, DonationType } from '../types';
 import Card from './ui/Card';
@@ -34,22 +34,41 @@ const Title = styled.h2`
   ${media.sm} { font-size: ${Theme.typography.h1}; }
 `;
 
-const SaveButton = styled.button`
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+`;
+const SaveButton = styled.button<{ $dirty?: boolean }>`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: ${Theme.spacing.sm};
-  background: ${Theme.colors.brand.navy[700]};
+  background: ${props => props.$dirty ? Theme.colors.status.warning : Theme.colors.brand.navy[700]};
   color: white;
   padding: ${Theme.spacing.md} ${Theme.spacing.xl};
   min-height: 48px;
   border-radius: ${Theme.radius.md};
   font-weight: 600;
+  font-size: ${Theme.typography.body};
   border: none;
   cursor: pointer;
   transition: all 0.2s;
 
-  &:hover { background: ${Theme.colors.brand.navy[600]}; box-shadow: ${Theme.shadow.soft}; transform: translateY(-1px); }
-  &:disabled { background: ${Theme.colors.border.medium}; cursor: not-allowed; transform: none; }
+  &:hover {
+    background: ${props => props.$dirty ? Theme.colors.brand.gold[600] : Theme.colors.brand.navy[600]};
+    box-shadow: ${Theme.shadow.soft};
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+  &:disabled {
+    background: ${Theme.colors.border.medium};
+    cursor: not-allowed;
+    transform: none;
+  }
+  ${props => props.$dirty && css`animation: ${pulse} 2s infinite;`}
 `;
 
 const Section = styled.div`
@@ -298,6 +317,7 @@ interface DonationSettingsTabProps {
 // COMPONENT
 // ============================================================================
 
+
 export default function DonationSettingsTab({
   settings,
   onChange,
@@ -306,11 +326,25 @@ export default function DonationSettingsTab({
 }: DonationSettingsTabProps): React.JSX.Element {
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission(Permission.EDIT_DONATION_SETTINGS);
-  
+
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [editingType, setEditingType] = useState<DonationType | null>(null);
   const [newTypeName, setNewTypeName] = useState('');
   const [newAmount, setNewAmount] = useState('');
+
+  // Track dirty state
+  const initialSnapshotRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (settings && initialSnapshotRef.current === null) {
+      initialSnapshotRef.current = JSON.stringify(settings);
+    }
+  }, [settings]);
+  useEffect(() => {
+    if (!saving && settings) {
+      initialSnapshotRef.current = JSON.stringify(settings);
+    }
+  }, [saving, settings]);
+  const isDirty = settings && initialSnapshotRef.current && JSON.stringify(settings) !== initialSnapshotRef.current;
 
   if (!settings) {
     return <Container>Loading settings...</Container>;
@@ -418,7 +452,7 @@ export default function DonationSettingsTab({
     <Container>
       <Header>
         <Title>Donation Settings</Title>
-        <SaveButton onClick={onSave} disabled={saving || !canEdit}>
+        <SaveButton onClick={onSave} disabled={saving || !canEdit} $dirty={!!isDirty}>
           <Save size={20} />
           {saving ? 'Saving...' : 'Save Settings'}
         </SaveButton>

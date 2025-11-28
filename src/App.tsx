@@ -94,7 +94,7 @@ export default function AdminDashboard(): React.JSX.Element {
     imam: "Sheikh [Name]",
     latitude: -33.8688,
     longitude: 151.2093,
-    calculation_method: 3,
+    calculation_method: "MuslimWorldLeague",
     auto_fetch_maghrib: false,
   });
 

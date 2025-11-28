@@ -1,6 +1,6 @@
 // Firebase Data Types
 
-import { Timestamp } from 'firebase/firestore';
+import { FieldValue, Timestamp } from 'firebase/firestore';
 
 // ============================================================================
 // ROLE & PERMISSION TYPES
@@ -65,7 +65,7 @@ export interface PrayerTimes {
   isha_iqama_type: 'fixed' | 'offset';
   isha_iqama_offset?: number;
   
-  last_updated?: Timestamp;
+  last_updated?: Timestamp | FieldValue;
 }
 
 export interface JumuahTime {
@@ -75,7 +75,7 @@ export interface JumuahTime {
 
 export interface JumuahData {
   times: JumuahTime[];
-  last_updated?: Timestamp;
+  last_updated?: Timestamp | FieldValue;
 }
 
 export interface MosqueSettings {
@@ -92,7 +92,7 @@ export interface MosqueSettings {
   timezone?: string; // IANA timezone identifier (e.g., 'Australia/Sydney')
   calculation_method?: 'MuslimWorldLeague' | 'Egyptian' | 'Karachi' | 'UmmAlQura' | 'Dubai' | 'MoonsightingCommittee' | 'NorthAmerica' | 'Kuwait' | 'Qatar' | 'Singapore' | 'Tehran' | 'Turkey';
   auto_fetch_maghrib?: boolean;
-  last_updated?: Timestamp;
+  last_updated?: Timestamp | FieldValue;
 }
 
 export interface Event {

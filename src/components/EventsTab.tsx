@@ -1042,12 +1042,14 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
             )}
           </div>
 
-          <ButtonGroup>
-            <Button onClick={() => openModal()} disabled={!canEdit}>
-              <Plus size={20} />
-              Add New Event
-            </Button>
-          </ButtonGroup>
+          {events.length > 0 && (
+            <ButtonGroup>
+              <Button onClick={() => openModal()} disabled={!canEdit}>
+                <Plus size={20} />
+                Add New Event
+              </Button>
+            </ButtonGroup>
+          )}
 
           {loading ? (
             <EmptyState>
@@ -1061,7 +1063,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
               </EmptyStateText>
               <Button onClick={() => openModal()} disabled={!canEdit}>
                 <Plus size={20} />
-                Add First Event
+                Add New Event
               </Button>
             </EmptyState>
           ) : (
