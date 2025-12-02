@@ -7,7 +7,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Download, RefreshCw, DollarSign, TrendingUp, Calendar, Repeat } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Timestamp } from 'firebase/firestore';
 import Card from './ui/Card';
 import { Theme, media } from '../constants/theme';
 
@@ -25,8 +24,8 @@ interface DonationRecord {
   donation_type_label: string;
   payment_status: string;
   is_recurring: boolean;
-  date: Timestamp;
-  created_at: Timestamp;
+  date: string; // YYYY-MM-DD from function
+  created_at: string; // ISO string from function
 }
 
 interface RecurringDonationRecord {
@@ -264,14 +263,13 @@ const getDateRange = (period: 'today' | 'week' | 'month' | 'year') => {
   return { start: today, end: today };
 };
 
-// Convert Firestore Timestamp to YYYY-MM-DD string
-const timestampToDateString = (timestamp: Timestamp): string => {
-  if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// Convert YYYY-MM-DD or ISO string to YYYY-MM-DD
+const timestampToDateString = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // Already YYYY-MM-DD format from function
+  if (dateStr.length === 10 && dateStr.includes('-')) return dateStr;
+  // ISO string - extract date portion
+  return dateStr.substring(0, 10);
 };
 
 // Calculate donations for a period
@@ -373,17 +371,18 @@ export default function DonationAnalyticsTab({
     return `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Format date - handles both Timestamp and string
-  const formatDate = (timestamp: Timestamp): string => {
+  // Format date string (YYYY-MM-DD) to display format
+  const formatDate = (dateStr: string): string => {
     try {
-      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+      if (!dateStr) return '';
+      const date = new Date(dateStr + 'T00:00:00');
       return date.toLocaleDateString('en-AU', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
       });
     } catch {
-      return String(timestamp || '');
+      return dateStr;
     }
   };
 
