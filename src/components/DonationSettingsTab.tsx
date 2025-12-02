@@ -331,12 +331,19 @@ export default function DonationSettingsTab({
   const [editingType, setEditingType] = useState<DonationType | null>(null);
   const [newTypeName, setNewTypeName] = useState('');
   const [newAmount, setNewAmount] = useState('');
+  const [minAmountInput, setMinAmountInput] = useState<string>('');
 
   // Track dirty state
   const initialSnapshotRef = useRef<string | null>(null);
   useEffect(() => {
     if (settings && initialSnapshotRef.current === null) {
       initialSnapshotRef.current = JSON.stringify(settings);
+    }
+  }, [settings]);
+  useEffect(() => {
+    // Keep local input in sync when settings change
+    if (settings) {
+      setMinAmountInput(String(settings.minimum_amount ?? ''));
     }
   }, [settings]);
   useEffect(() => {
@@ -546,8 +553,21 @@ export default function DonationSettingsTab({
             <Label>Minimum Donation Amount ($)</Label>
             <Input
               type="number"
-              value={settings.minimum_amount}
-              onChange={(e) => onChange({ ...settings, minimum_amount: parseFloat(e.target.value) || 5 })}
+              value={minAmountInput}
+              onChange={(e) => {
+                const val = e.target.value;
+                setMinAmountInput(val);
+              }}
+              onBlur={() => {
+                // Apply only when a valid number is entered
+                const parsed = parseFloat(minAmountInput);
+                if (!isNaN(parsed) && parsed > 0) {
+                  onChange({ ...settings, minimum_amount: parsed });
+                } else {
+                  // Revert display to current setting if invalid/empty
+                  setMinAmountInput(String(settings.minimum_amount));
+                }
+              }}
               min="1"
             />
           </FormGroup>
