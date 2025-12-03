@@ -21,6 +21,7 @@ export interface UserWithRoles {
   createdAt: string;
   lastSignIn: string;
   photoURL?: string | null;
+  emailVerified?: boolean;
 }
 
 /**

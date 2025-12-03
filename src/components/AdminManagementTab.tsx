@@ -478,7 +478,8 @@ const InfoBox = styled.div`
 
 export default function AdminManagementTabNew(): React.JSX.Element {
   const { isSuperAdmin } = useFirebaseAuth();
-  const [users, setUsers] = useState<UserWithRoles[]>([]);
+  type ExtendedUserWithRoles = UserWithRoles & { emailVerified?: boolean };
+  const [users, setUsers] = useState<ExtendedUserWithRoles[]>([]);
   const [activeTab, setActiveTab] = useState<'create' | 'assign' | 'manage'>('create');
   
   // Form fields
@@ -1349,9 +1350,34 @@ export default function AdminManagementTabNew(): React.JSX.Element {
                         </div>
                         <UserMeta>
                           {user.permissions.length} permissions • Last sign in: {formatLastSignIn(user.lastSignIn)}
+                          {' '}
+                          • {user.emailVerified ? 'Verified' : 'Unverified'}
                         </UserMeta>
                       </UserInfo>
                       <UserActions>
+                        {!user.emailVerified && (
+                          <Button
+                            $variant="secondary"
+                            onClick={async () => {
+                              setLoading(true);
+                              setMessage(null);
+                              try {
+                                const fn = httpsCallable(functions, 'sendEmailVerification');
+                                await fn({ email: user.email });
+                                setMessage({ text: `Verification email sent to ${user.email}`, type: 'success' });
+                              } catch (error: any) {
+                                setMessage({ text: `❌ ${error.message}`, type: 'error' });
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            disabled={loading}
+                            style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                            title="Send verification email"
+                          >
+                            Send Verification
+                          </Button>
+                        )}
                         {isSuperAdmin && !user.isSuperAdmin && user.roles.length > 0 && (
                           <Button
                             $variant="secondary"
@@ -1385,6 +1411,48 @@ export default function AdminManagementTabNew(): React.JSX.Element {
                             Assign Roles
                           </Button>
                         )}
+                        <Button
+                          $variant="secondary"
+                          onClick={async () => {
+                            setLoading(true);
+                            setMessage(null);
+                            try {
+                              const fn = httpsCallable(functions, 'sendAdminOnboardingEmail');
+                              await fn({ email: user.email });
+                              setMessage({ text: `Invite sent to ${user.email}`, type: 'success' });
+                            } catch (error: any) {
+                              setMessage({ text: `❌ ${error.message}`, type: 'error' });
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          disabled={loading}
+                          style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                          title="Resend onboarding invite"
+                        >
+                          Resend Invite
+                        </Button>
+                        <Button
+                          $variant="secondary"
+                          onClick={async () => {
+                            setLoading(true);
+                            setMessage(null);
+                            try {
+                              const fn = httpsCallable(functions, 'sendPasswordReset');
+                              await fn({ email: user.email });
+                              setMessage({ text: `Password reset email sent to ${user.email}`, type: 'success' });
+                            } catch (error: any) {
+                              setMessage({ text: `❌ ${error.message}`, type: 'error' });
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          disabled={loading}
+                          style={{ fontSize: '0.875rem', padding: '8px 12px', minHeight: '36px' }}
+                          title="Send password reset"
+                        >
+                          Send Reset
+                        </Button>
                         {isSuperAdmin && !user.isSuperAdmin && (
                           <Button
                             onClick={() => deleteUserAccount(user.uid, user.email)}

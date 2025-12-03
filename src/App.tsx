@@ -21,6 +21,7 @@ import EventsTab from "./components/EventsTab";
 import DonationsTab from './components/DonationsTab';
 import NotificationsTab from './components/NotificationsTab';
 import AdminManagementTab from './components/AdminManagementTab';
+import AdminActivityTab from './components/AdminActivityTab';
 import Loading from './components/ui/Loading';
 import ToastContainer from './components/ui/ToastContainer';
 // Import custom hook
@@ -401,6 +402,10 @@ export default function AdminDashboard(): React.JSX.Element {
 
             {activeTab === 'admin' && (
               <AdminManagementTab />
+            )}
+
+            {activeTab === 'activity' && (
+              <AdminActivityTab />
             )}
 
             {activeTab === "settings" && (
