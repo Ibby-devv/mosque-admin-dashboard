@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Clock, Calendar, DollarSign, Bell, Settings, CalendarDays, Shield } from 'lucide-react';
+import { Clock, Calendar, DollarSign, Bell, Settings, CalendarDays, Shield, Activity } from 'lucide-react';
 import { TabsProps } from '../types';
 import { Theme, media } from '../constants/theme';
 import { usePermissions } from '../hooks/usePermissions';
@@ -136,6 +136,12 @@ export default function Tabs({ activeTab, onTabChange }: TabsProps): React.JSX.E
       id: 'admin', 
       label: 'Admin', 
       icon: <Shield size={18} />,
+      requiredPermission: Permission.VIEW_USERS
+    },
+    { 
+      id: 'activity', 
+      label: 'Activity', 
+      icon: <Activity size={18} />,
       requiredPermission: Permission.VIEW_USERS
     }
   ];
