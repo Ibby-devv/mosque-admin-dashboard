@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { Save, MapPin, ExternalLink, Info, AlertCircle, Search, CheckCircle, Clock } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { CalculationMethod } from 'adhan';
 import { MosqueSettingsTabProps } from '../types';
 import { Theme, media } from '../constants/theme';
 import { usePermissions } from '../hooks/usePermissions';
@@ -523,21 +524,34 @@ export default function MosqueSettingsTab({ mosqueSettings, onChange, onSave, sa
     }
   }, [mosqueSettings]);
 
-  // Calculation methods using adhan package naming convention
-  const calculationMethods = [
-    { value: 'MuslimWorldLeague', label: 'Muslim World League (MWL)' },
-    { value: 'Egyptian', label: 'Egyptian General Authority of Survey' },
-    { value: 'Karachi', label: 'University of Islamic Sciences, Karachi' },
-    { value: 'UmmAlQura', label: 'Umm Al-Qura University, Makkah' },
-    { value: 'Dubai', label: 'Dubai' },
-    { value: 'MoonsightingCommittee', label: 'Moonsighting Committee' },
-    { value: 'NorthAmerica', label: 'Islamic Society of North America (ISNA)' },
-    { value: 'Kuwait', label: 'Kuwait' },
-    { value: 'Qatar', label: 'Qatar' },
-    { value: 'Singapore', label: 'Majlis Ugama Islam Singapura, Singapore' },
-    { value: 'Tehran', label: 'Institute of Geophysics, University of Tehran' },
-    { value: 'Turkey', label: 'Diyanet İşleri Başkanlığı, Turkey' },
-  ];
+  // Calculation methods using adhan package - dynamically extracted from CalculationMethod
+  const calculationMethods = useMemo(() => {
+    // Get all available calculation method names from the CalculationMethod object
+    const methodNames = Object.keys(CalculationMethod).filter(
+      key => typeof CalculationMethod[key as keyof typeof CalculationMethod] === 'function'
+    );
+
+    // Define user-friendly labels for each method
+    const labels: Record<string, string> = {
+      'MuslimWorldLeague': 'Muslim World League (MWL)',
+      'Egyptian': 'Egyptian General Authority of Survey',
+      'Karachi': 'University of Islamic Sciences, Karachi',
+      'UmmAlQura': 'Umm Al-Qura University, Makkah',
+      'Dubai': 'Dubai',
+      'MoonsightingCommittee': 'Moonsighting Committee',
+      'NorthAmerica': 'Islamic Society of North America (ISNA)',
+      'Kuwait': 'Kuwait',
+      'Qatar': 'Qatar',
+      'Singapore': 'Majlis Ugama Islam Singapura, Singapore',
+      'Tehran': 'Institute of Geophysics, University of Tehran',
+      'Turkey': 'Diyanet İşleri Başkanlığı, Turkey',
+    };
+
+    return methodNames.map(method => ({
+      value: method,
+      label: labels[method] || method, // Fallback to method name if no label defined
+    }));
+  }, []);
 
   const hasErrors = !!errors.latitude || !!errors.longitude;
 

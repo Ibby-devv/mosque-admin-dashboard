@@ -7,6 +7,7 @@ import { Theme, media } from '../constants/theme';
 import Card from './ui/Card';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
+import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes } from 'adhan';
 
 // Using shared Card component from ./ui/Card for consistent styling across tabs
 
@@ -439,72 +440,73 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
     setFetchStatus(null);
 
     try {
-      const timestamp = Math.floor(Date.now() / 1000);
-      const method = mosqueSettings.calculation_method || 3;
+      console.log('Calculating prayer times using Adhan package...', {
+        latitude: mosqueSettings.latitude,
+        longitude: mosqueSettings.longitude,
+        method: mosqueSettings.calculation_method,
+      });
 
-      console.log('Fetching all prayer times from API...');
-
-      const response = await fetch(
-        `https://api.aladhan.com/v1/timings/${timestamp}?latitude=${mosqueSettings.latitude}&longitude=${mosqueSettings.longitude}&method=${method}`
+      // Set up coordinates
+      const coordinates = new Coordinates(
+        mosqueSettings.latitude,
+        mosqueSettings.longitude
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch prayer times');
-      }
+      // Get calculation method (default to MuslimWorldLeague if not specified)
+      const methodName = mosqueSettings.calculation_method || 'MuslimWorldLeague';
+      const params = CalculationMethod[methodName as keyof typeof CalculationMethod]();
 
-      const data = await response.json();
+      // Calculate prayer times for today IN THE MOSQUE'S TIMEZONE
+      // This ensures we calculate for the same day as the cloud function
+      const mosqueTimezone = mosqueSettings.timezone || 'Australia/Sydney';
       
-      console.log('API Response:', data);
+      // Get today's date in the mosque's timezone
+      const now = new Date();
+      const dateString = now.toLocaleDateString('en-US', { timeZone: mosqueTimezone });
+      const date = new Date(dateString); // This creates a Date at midnight in the mosque's timezone
+      
+      const adhanPrayerTimes = new AdhanPrayerTimes(coordinates, date, params);
 
-      if (data.code !== 200 || !data.data?.timings) {
-        throw new Error('Invalid API response');
-      }
-
-      // Convert all prayer times from 24-hour to 12-hour format
-      const timings = data.data.timings;
-      const convertTo12Hour = (time24: string): string => {
-        const [hours24, minutes] = time24.split(':');
-        let hours = parseInt(hours24);
-        const period = hours >= 12 ? 'PM' : 'AM';
-        
-        if (hours > 12) {
-          hours -= 12;
-        } else if (hours === 0) {
-          hours = 12;
-        }
-
-        return `${hours}:${minutes} ${period}`;
+      // Convert Date objects to 12-hour format strings in mosque timezone
+      const formatTime = (date: Date): string => {
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+          timeZone: mosqueTimezone,
+        });
       };
 
       // Update all Adhan times
       const updatedPrayerTimes = {
         ...prayerTimes,
-        fajr_adhan: convertTo12Hour(timings.Fajr),
-        dhuhr_adhan: convertTo12Hour(timings.Dhuhr),
-        asr_adhan: convertTo12Hour(timings.Asr),
-        maghrib_adhan: convertTo12Hour(timings.Maghrib),
-        isha_adhan: convertTo12Hour(timings.Isha),
+        fajr_adhan: formatTime(adhanPrayerTimes.fajr),
+        dhuhr_adhan: formatTime(adhanPrayerTimes.dhuhr),
+        asr_adhan: formatTime(adhanPrayerTimes.asr),
+        maghrib_adhan: formatTime(adhanPrayerTimes.maghrib),
+        isha_adhan: formatTime(adhanPrayerTimes.isha),
       };
 
       onChange(updatedPrayerTimes);
 
-      console.log('All prayer times updated:', {
-        Fajr: convertTo12Hour(timings.Fajr),
-        Dhuhr: convertTo12Hour(timings.Dhuhr),
-        Asr: convertTo12Hour(timings.Asr),
-        Maghrib: convertTo12Hour(timings.Maghrib),
-        Isha: convertTo12Hour(timings.Isha),
+      console.log('Prayer times calculated successfully:', {
+        method: methodName,
+        fajr: formatTime(adhanPrayerTimes.fajr),
+        dhuhr: formatTime(adhanPrayerTimes.dhuhr),
+        asr: formatTime(adhanPrayerTimes.asr),
+        maghrib: formatTime(adhanPrayerTimes.maghrib),
+        isha: formatTime(adhanPrayerTimes.isha),
       });
 
       setFetchStatus({
         success: true,
-        message: 'All prayer times updated successfully! Click "Save Prayer Times" to save changes.'
+        message: 'Prayer times calculated successfully! Click "Save Prayer Times" to save changes.'
       });
-    } catch (error) {
-      console.error('Error fetching prayer times:', error);
+    } catch (error: any) {
+      console.error('Error calculating prayer times:', error);
       setFetchStatus({
         success: false,
-        message: 'Failed to fetch prayer times. Please check your internet connection.'
+        message: 'Failed to calculate prayer times. Please check mosque settings.'
       });
     } finally {
       setFetchingPrayerTimes(false);
@@ -525,10 +527,10 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
           <BannerContent>
             <BannerTitle>🌍 Prayer Times Auto-Calculated</BannerTitle>
             <BannerText>
-              Adhan times are automatically calculated from Aladhan API based on your mosque location.
+              Adhan times are automatically calculated using the Adhan package based on your mosque location.
               {prayerTimes?.last_updated && ` Last updated: ${(() => {
-                const timestamp = prayerTimes.last_updated;
-                const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+                const timestamp = prayerTimes.last_updated as any;
+                const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
                 return date.toLocaleDateString('en-AU', { 
                   year: 'numeric', 
                   month: 'long', 
