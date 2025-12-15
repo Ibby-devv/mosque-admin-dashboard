@@ -12,6 +12,7 @@ export const Theme = {
         800: '#172554',
         700: '#1e3a8a',
         600: '#1d4ed8',
+        50: '#eff6ff',
       },
       gold: {
         600: '#d97706',
@@ -55,6 +56,8 @@ export const Theme = {
       errorLight: '#fee2e2',
       errorDark: '#991b1b',
       warning: '#f59e0b',
+      warningLight: '#fff7ed',
+      warningDark: '#92400e',
       info: '#60a5fa',
     },
   },

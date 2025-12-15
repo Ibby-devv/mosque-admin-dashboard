@@ -69,6 +69,17 @@ export interface PrayerTimes {
   last_updated?: Timestamp | FieldValue;
 }
 
+export interface ScheduledIqamaChange {
+  id: string;
+  prayer: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+  effectiveDate: number; // Milliseconds timestamp (returned from cloud function)
+  iqama_time: string; // Fixed time only (e.g., "6:00 AM")
+  applied: boolean;
+  createdBy: string;
+  createdAt: number; // Milliseconds timestamp
+  appliedAt?: number; // Milliseconds timestamp
+}
+
 export interface JumuahTime {
   id: string;
   khutbah: string;
