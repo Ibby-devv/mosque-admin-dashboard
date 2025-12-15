@@ -936,13 +936,13 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                       </ScheduledChangeHeader>
                       <ScheduledChangeDetails>
                         <div>
-                          <strong>Effective:</strong> {new Date(scheduledChange.effectiveDate.seconds * 1000).toLocaleDateString()}
+                          <strong>Effective:</strong> {new Date(scheduledChange.effectiveDate as number).toLocaleDateString()}
                         </div>
                         <div>
                           <strong>New iqama:</strong> {scheduledChange.iqama_time}
                         </div>
                         <div style={{ marginTop: '0.25rem', fontSize: '0.85em' }}>
-                          Will apply at {prayer} time on {new Date(scheduledChange.effectiveDate.seconds * 1000 - 86400000).toLocaleDateString()}
+                          Will apply at {prayer} time on {new Date((scheduledChange.effectiveDate as number) - 86400000).toLocaleDateString()}
                         </div>
                       </ScheduledChangeDetails>
                     </ScheduledChangeBox>
