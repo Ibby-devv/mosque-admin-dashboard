@@ -371,10 +371,11 @@ const ScheduleInputGroup = styled.div`
 const DateInput = styled.input`
   width: 100%;
   max-width: 100%;
-  padding: ${Theme.spacing.sm};
+  padding: ${Theme.spacing.md};
+  min-height: 44px;
   border: 1px solid ${Theme.colors.border.base};
-  border-radius: ${Theme.radius.sm};
-  font-size: ${Theme.typography.small};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
   outline: none;
   transition: all 0.2s;
   box-sizing: border-box;
@@ -487,6 +488,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
   const [scheduledChanges, setScheduledChanges] = useState<Record<string, ScheduledIqamaChange>>({});
   const [schedulingPrayer, setSchedulingPrayer] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState(''); // Separate time picker for scheduling
   const [isScheduling, setIsScheduling] = useState(false);
 
   // Ensure initial snapshot is set on mount
@@ -536,15 +538,15 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
   const handleCancelSchedule = () => {
     setSchedulingPrayer(null);
     setScheduleDate('');
+    setScheduleTime('');
   };
 
   const handleSaveSchedule = async () => {
-    if (!schedulingPrayer || !scheduleDate) return;
+    if (!schedulingPrayer || !scheduleDate || !scheduleTime) return;
 
     setIsScheduling(true);
     try {
       const prayer = schedulingPrayer;
-      const iqamaTime = (prayerTimes as any)[`${prayer}_iqama`];
 
       // Convert date to timestamp (midnight)
       const dateObj = new Date(scheduleDate);
@@ -554,7 +556,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       const result = await createScheduledIqamaChange({
         prayer: prayer,
         effectiveDate: dateObj.getTime(),
-        iqama_time: iqamaTime
+        iqama_time: scheduleTime
       });
 
       const data = result.data as { success: boolean; id: string; message: string };
@@ -564,6 +566,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
         await loadScheduledChanges();
         setSchedulingPrayer(null);
         setScheduleDate('');
+        setScheduleTime('');
       }
     } catch (error: any) {
       console.error('Error scheduling change:', error);
@@ -896,7 +899,12 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
 
                   {isSchedulingThis && (
                     <ScheduleInputGroup>
-                      <TimeLabel>Effective Date</TimeLabel>
+                      <TimeLabel>New Iqama Time</TimeLabel>
+                      <TimeInput
+                        value={scheduleTime}
+                        onChange={(value) => setScheduleTime(value)}
+                      />
+                      <TimeLabel style={{ marginTop: Theme.spacing.md }}>Effective Date</TimeLabel>
                       <DateInput
                         type="date"
                         value={scheduleDate}
@@ -909,7 +917,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                       <ScheduleActions>
                         <ScheduleSaveButton 
                           onClick={handleSaveSchedule}
-                          disabled={isScheduling || !scheduleDate}
+                          disabled={isScheduling || !scheduleDate || !scheduleTime}
                         >
                           {isScheduling ? 'Scheduling...' : 'Schedule'}
                         </ScheduleSaveButton>
