@@ -73,8 +73,7 @@ export interface ScheduledIqamaChange {
   id: string;
   prayer: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
   effectiveDate: Timestamp;
-  iqama_type: 'fixed' | 'offset';
-  iqama_value: string | number; // Time string for fixed, number for offset
+  iqama_time: string; // Fixed time only (e.g., "6:00 AM")
   applied: boolean;
   createdBy: string;
   createdAt: Timestamp;

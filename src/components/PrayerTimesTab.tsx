@@ -10,7 +10,6 @@ import { Permission } from '../constants/roles';
 import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes } from 'adhan';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
-import { Timestamp } from 'firebase/firestore';
 
 // Using shared Card component from ./ui/Card for consistent styling across tabs
 
@@ -545,10 +544,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
     setIsScheduling(true);
     try {
       const prayer = schedulingPrayer;
-      const iqamaType = (prayerTimes as any)[`${prayer}_iqama_type`] || 'fixed';
-      const iqamaValue = iqamaType === 'fixed' 
-        ? (prayerTimes as any)[`${prayer}_iqama`]
-        : (prayerTimes as any)[`${prayer}_iqama_offset`] || 15;
+      const iqamaTime = (prayerTimes as any)[`${prayer}_iqama`];
 
       // Convert date to timestamp (midnight)
       const dateObj = new Date(scheduleDate);
@@ -558,8 +554,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       const result = await createScheduledIqamaChange({
         prayer: prayer,
         effectiveDate: dateObj.getTime(),
-        iqama_type: iqamaType,
-        iqama_value: iqamaValue
+        iqama_time: iqamaTime
       });
 
       const data = result.data as { success: boolean; id: string; message: string };
@@ -890,7 +885,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                 </TimeInputGroup>
               )}
 
-              {canEdit && (
+              {canEdit && iqamaType === 'fixed' && (
                 <ScheduleSection>
                   {!scheduledChange && !isSchedulingThis && (
                     <ScheduleButton onClick={() => handleScheduleClick(prayer)}>
@@ -944,10 +939,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                           <strong>Effective:</strong> {new Date(scheduledChange.effectiveDate.seconds * 1000).toLocaleDateString()}
                         </div>
                         <div>
-                          <strong>New iqama:</strong>{' '}
-                          {scheduledChange.iqama_type === 'fixed' 
-                            ? scheduledChange.iqama_value 
-                            : `${scheduledChange.iqama_value} min after adhan`}
+                          <strong>New iqama:</strong> {scheduledChange.iqama_time}
                         </div>
                         <div style={{ marginTop: '0.25rem', fontSize: '0.85em' }}>
                           Will apply at {prayer} time on {new Date(scheduledChange.effectiveDate.seconds * 1000 - 86400000).toLocaleDateString()}
