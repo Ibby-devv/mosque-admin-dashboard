@@ -548,14 +548,12 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
     try {
       const prayer = schedulingPrayer;
 
-      // Convert date to timestamp (midnight)
-      const dateObj = new Date(scheduleDate);
-      dateObj.setHours(0, 0, 0, 0);
-
+      // Send date string to backend - let backend handle timezone conversion
+      // Backend will convert this to midnight in the mosque's configured timezone
       const createScheduledIqamaChange = httpsCallable(functions, 'createScheduledIqamaChange');
       const result = await createScheduledIqamaChange({
         prayer: prayer,
-        effectiveDate: dateObj.getTime(),
+        effectiveDate: scheduleDate, // Send as YYYY-MM-DD string
         iqama_time: scheduleTime
       });
 
@@ -909,7 +907,11 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                         type="date"
                         value={scheduleDate}
                         onChange={(e) => setScheduleDate(e.target.value)}
-                        min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                        min={(() => {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          return tomorrow.toISOString().split('T')[0];
+                        })()}
                       />
                       <div style={{ fontSize: Theme.typography.small, color: Theme.colors.text.muted }}>
                         Change will apply at {prayer} time on the day before this date
@@ -944,13 +946,17 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
                       </ScheduledChangeHeader>
                       <ScheduledChangeDetails>
                         <div>
-                          <strong>Effective:</strong> {new Date(scheduledChange.effectiveDate as number).toLocaleDateString()}
+                          <strong>Effective:</strong> {new Date(scheduledChange.effectiveDate as number).toLocaleDateString('en-AU')}
                         </div>
                         <div>
                           <strong>New iqama:</strong> {scheduledChange.iqama_time}
                         </div>
                         <div style={{ marginTop: '0.25rem', fontSize: '0.85em' }}>
-                          Will apply at {prayer} time on {new Date((scheduledChange.effectiveDate as number) - 86400000).toLocaleDateString()}
+                          Will apply at {prayer} time on {(() => {
+                            const applyDate = new Date(scheduledChange.effectiveDate as number);
+                            applyDate.setDate(applyDate.getDate() - 1);
+                            return applyDate.toLocaleDateString('en-AU');
+                          })()}
                         </div>
                       </ScheduledChangeDetails>
                     </ScheduledChangeBox>
