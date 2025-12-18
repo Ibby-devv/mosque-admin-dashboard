@@ -35,7 +35,10 @@ import {
   JumuahData,
   MosqueSettings,
   DonationSettings,
+  ScheduledIqamaChange,
 } from "./types";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "./firebase";
 
 const db = getFirestore();
 
@@ -85,6 +88,9 @@ export default function AdminDashboard(): React.JSX.Element {
 
   // New Jumuah data structure (times array). Start as null until loaded or edited.
   const [jumuahTimes, setJumuahTimes] = useState<JumuahData | null>(null);
+
+  // Scheduled iqama changes
+  const [scheduledChanges, setScheduledChanges] = useState<Record<string, ScheduledIqamaChange>>({});
 
   const [mosqueSettings, setMosqueSettings] = useState<MosqueSettings>({
     name: "Al Madina Masjid Yagoona",
@@ -138,6 +144,19 @@ export default function AdminDashboard(): React.JSX.Element {
 
       if (settingsDoc.exists()) {
         setMosqueSettings(settingsDoc.data() as MosqueSettings);
+      }
+
+      // Load scheduled iqama changes
+      const getScheduledIqamaChanges = httpsCallable(functions, 'getScheduledIqamaChanges');
+      const scheduledResult = await getScheduledIqamaChanges({ includeApplied: false });
+      const scheduledData = scheduledResult.data as { success: boolean; schedules: ScheduledIqamaChange[] };
+      
+      if (scheduledData.success && scheduledData.schedules) {
+        const changesMap: Record<string, ScheduledIqamaChange> = {};
+        scheduledData.schedules.forEach(schedule => {
+          changesMap[schedule.prayer] = schedule;
+        });
+        setScheduledChanges(changesMap);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -367,6 +386,8 @@ export default function AdminDashboard(): React.JSX.Element {
                 onSave={savePrayerTimes}
                 saving={saving}
                 mosqueSettings={mosqueSettings}
+                scheduledChanges={scheduledChanges}
+                onScheduledChangesUpdate={setScheduledChanges}
               />
             )}
 

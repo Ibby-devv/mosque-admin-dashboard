@@ -168,6 +168,8 @@ export interface PrayerTimesTabProps {
   onSave: () => void;
   saving: boolean;
   mosqueSettings?: MosqueSettings;
+  scheduledChanges?: Record<string, ScheduledIqamaChange>;
+  onScheduledChangesUpdate?: (changes: Record<string, ScheduledIqamaChange>) => void;
 }
 
 export interface JumuahTimesTabProps {

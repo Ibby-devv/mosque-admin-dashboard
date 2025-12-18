@@ -474,7 +474,7 @@ const ScheduledChangeDetails = styled.div`
   line-height: 1.4;
 `;
 
-export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, mosqueSettings }: PrayerTimesTabProps): React.JSX.Element {
+export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, mosqueSettings, scheduledChanges: propsScheduledChanges, onScheduledChangesUpdate }: PrayerTimesTabProps): React.JSX.Element {
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission(Permission.EDIT_PRAYER_TIMES);
   
@@ -484,8 +484,8 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
   // Keep a snapshot of the last-saved prayerTimes to detect unsaved changes
   const initialSnapshotRef = useRef<string>(JSON.stringify(prayerTimes));
   
-  // Scheduling state
-  const [scheduledChanges, setScheduledChanges] = useState<Record<string, ScheduledIqamaChange>>({});
+  // Scheduling state - use props if provided, otherwise fallback to empty object
+  const scheduledChanges = propsScheduledChanges || {};
   const [schedulingPrayer, setSchedulingPrayer] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState(''); // Separate time picker for scheduling
@@ -504,11 +504,6 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
     }
   }, [saving, prayerTimes]);
 
-  // Load scheduled changes
-  useEffect(() => {
-    loadScheduledChanges();
-  }, []);
-
   const loadScheduledChanges = async () => {
     try {
       const getScheduledIqamaChanges = httpsCallable(functions, 'getScheduledIqamaChanges');
@@ -520,7 +515,9 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
         data.schedules.forEach(schedule => {
           changesMap[schedule.prayer] = schedule;
         });
-        setScheduledChanges(changesMap);
+        if (onScheduledChangesUpdate) {
+          onScheduledChangesUpdate(changesMap);
+        }
       }
     } catch (error) {
       console.error('Error loading scheduled changes:', error);
