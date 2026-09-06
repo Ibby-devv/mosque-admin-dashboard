@@ -28,6 +28,7 @@ import ToastContainer from './components/ui/ToastContainer';
 import { useFirebaseAuth } from "./hooks/useFirebaseAuth";
 import { useToast } from "./hooks/useToast";
 import { PermissionsContext, createPermissionsValue } from "./hooks/usePermissions";
+import { applyOffsetIqamasToPrayerTimes } from "./utils/prayerTimeHelpers";
 
 // Import types
 import {
@@ -277,11 +278,15 @@ export default function AdminDashboard(): React.JSX.Element {
   const savePrayerTimes = async (): Promise<void> => {
     setSaving(true);
     try {
+      // Ensure offset-based Iqama clock times match current Adhan + offset before persist
+      const withOffsetIqamas = applyOffsetIqamasToPrayerTimes(prayerTimes);
       const updatedPrayerTimes: PrayerTimes = {
-        ...prayerTimes,
+        ...withOffsetIqamas,
         last_updated: serverTimestamp(),
       };
       await setDoc(doc(db, "prayerTimes", "current"), updatedPrayerTimes);
+      // Keep local state in sync with recomputed offset Iqama values
+      setPrayerTimes(withOffsetIqamas);
       // Don't set serverTimestamp() sentinel in local state - it will be updated via snapshot listener
       showSaveStatus(true);
     } catch (error) {
