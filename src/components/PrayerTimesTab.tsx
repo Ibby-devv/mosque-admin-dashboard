@@ -8,6 +8,7 @@ import Card from './ui/Card';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
 import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes } from 'adhan';
+import { applyOffsetIqamasToPrayerTimes, calculateIqamaTime } from '../utils/prayerTimeHelpers';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 
@@ -626,53 +627,42 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       [`${prayer}_iqama_type`]: type
     };
 
-    if (type === 'offset' && !prayerTimes[`${prayer}_iqama_offset` as keyof typeof prayerTimes]) {
-      updates[`${prayer}_iqama_offset`] = prayer === 'maghrib' ? 5 : 15;
+    if (type === 'offset') {
+      const existingOffset = prayerTimes[`${prayer}_iqama_offset` as keyof typeof prayerTimes];
+      const offset =
+        typeof existingOffset === 'number'
+          ? existingOffset
+          : prayer === 'maghrib'
+            ? 5
+            : 15;
+      updates[`${prayer}_iqama_offset`] = offset;
+
+      const adhanTime = prayerTimes[`${prayer}_adhan` as keyof typeof prayerTimes] as string | undefined;
+      const computedIqama = calculateIqamaTime(adhanTime, offset);
+      if (computedIqama !== '--:--') {
+        updates[`${prayer}_iqama`] = computedIqama;
+      }
     }
 
     onChange(updates);
   };
 
   const handleOffsetChange = (prayer: string, value: string): void => {
-    const offset = parseInt(value) || 0;
-    onChange({
+    const offset = parseInt(value, 10);
+    const safeOffset = Number.isFinite(offset) ? offset : 0;
+    const adhanTime = prayerTimes[`${prayer}_adhan` as keyof typeof prayerTimes] as string | undefined;
+    const computedIqama = calculateIqamaTime(adhanTime, safeOffset);
+
+    const updates: any = {
       ...prayerTimes,
-      [`${prayer}_iqama_offset`]: offset
-    } as any);
-  };
+      [`${prayer}_iqama_offset`]: safeOffset,
+    };
 
-  const calculateIqamaTime = (adhanTime: string | undefined, offset: number | undefined): string => {
-    if (!adhanTime || !offset) return '--:--';
-
-    try {
-      const timeMatch = adhanTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
-      if (!timeMatch) return '--:--';
-
-      let hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const period = timeMatch[3].toUpperCase();
-
-      if (period === 'PM' && hours !== 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
-
-      let totalMinutes = hours * 60 + minutes + offset;
-      let newHours = Math.floor(totalMinutes / 60) % 24;
-      const newMinutes = totalMinutes % 60;
-
-      const newPeriod = newHours >= 12 ? 'PM' : 'AM';
-      if (newHours > 12) {
-        newHours -= 12;
-      } else if (newHours === 0) {
-        newHours = 12;
-      }
-
-      return `${newHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
-    } catch (error) {
-      return '--:--';
+    if (computedIqama !== '--:--') {
+      updates[`${prayer}_iqama`] = computedIqama;
     }
+
+    onChange(updates);
   };
 
   const fetchAllPrayerTimes = async (): Promise<void> => {
@@ -725,15 +715,15 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
         });
       };
 
-      // Update all Adhan times
-      const updatedPrayerTimes = {
+      // Update all Adhan times and recompute offset-based Iqama times
+      const updatedPrayerTimes = applyOffsetIqamasToPrayerTimes({
         ...prayerTimes,
         fajr_adhan: formatTime(adhanPrayerTimes.fajr),
         dhuhr_adhan: formatTime(adhanPrayerTimes.dhuhr),
         asr_adhan: formatTime(adhanPrayerTimes.asr),
         maghrib_adhan: formatTime(adhanPrayerTimes.maghrib),
         isha_adhan: formatTime(adhanPrayerTimes.isha),
-      };
+      });
 
       onChange(updatedPrayerTimes);
 
