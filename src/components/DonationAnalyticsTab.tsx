@@ -371,11 +371,15 @@ export default function DonationAnalyticsTab({
     return `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Format date string (YYYY-MM-DD) to display format
+  // Format date string (YYYY-MM-DD) to display format.
+  // Parse components directly — avoid Date parsing that can shift days across timezones.
   const formatDate = (dateStr: string): string => {
     try {
       if (!dateStr) return '';
-      const date = new Date(dateStr + 'T00:00:00');
+      const normalized = dateStr.substring(0, 10);
+      const [year, month, day] = normalized.split('-').map(Number);
+      if (!year || !month || !day) return dateStr;
+      const date = new Date(year, month - 1, day);
       return date.toLocaleDateString('en-AU', {
         day: '2-digit',
         month: 'short',
