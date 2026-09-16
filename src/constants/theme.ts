@@ -1,6 +1,6 @@
 /**
  * Shared theme tokens for Mosque Admin Dashboard
- * Mirrors the mobile app's design system for visual consistency
+ * Mirrors the mobile app's Direction A “calm mosque” design system
  */
 
 // Brand palette - navy and gold
@@ -41,7 +41,7 @@ export const Theme = {
       blueSoft: '#eff6ff',
       blue: '#60a5fa',
       blueDark: '#2563eb',
-      amberSoft: '#fff7ed',
+      amberSoft: '#fffbeb',
       green: '#22c55e',
       amber: '#f59e0b',
       red: '#ef4444',
@@ -85,10 +85,11 @@ export const Theme = {
     body: '14px',
     small: '12px',
   },
+  // Prefer hairline borders on panels; reserve shadows for headers / primary CTAs
   shadow: {
-    soft: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-    card: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    header: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+    soft: '0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    card: '0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    header: '0 4px 12px 0 rgba(0, 0, 0, 0.2)',
   },
 } as const;
 
@@ -129,8 +130,8 @@ export const mixins = {
   `,
   cardStyle: `
     background: ${Theme.colors.surface.card};
-    border-radius: ${Theme.radius.lg};
-    box-shadow: ${Theme.shadow.card};
-    padding: ${Theme.spacing.xl};
+    border: 1px solid ${Theme.colors.border.soft};
+    border-radius: ${Theme.radius.xl};
+    padding: ${Theme.spacing.lg};
   `,
 } as const;

@@ -16,7 +16,6 @@ const HeaderContainer = styled.div`
     padding: ${Theme.spacing.xl} ${Theme.spacing.xxl};
   }
 
-  /* Subtle pattern overlay */
   &::before {
     content: '';
     position: absolute;
@@ -47,7 +46,7 @@ const HeaderContent = styled.div`
 
 const HeaderLeft = styled.div`
   flex: 1;
-  min-width: 0; /* Allow text truncation */
+  min-width: 0;
 `;
 
 const HeaderGrid = styled.div`
@@ -55,7 +54,7 @@ const HeaderGrid = styled.div`
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto;
   column-gap: ${Theme.spacing.md};
-  row-gap: ${Theme.spacing.xs};
+  row-gap: 2px;
   align-items: center;
 `;
 
@@ -63,39 +62,40 @@ const LogoImg = styled.img`
   height: 40px;
   width: auto;
   display: block;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
 
   ${media.sm} {
     height: 48px;
   }
 
   ${media.md} {
-    height: 56px;
+    height: 52px;
   }
 `;
 
 const HeaderTitle = styled.h1`
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   margin: 0;
+  letter-spacing: -0.2px;
   color: ${Theme.colors.text.inverse};
 
   ${media.sm} {
-    font-size: 24px;
+    font-size: 20px;
   }
 
   ${media.md} {
-    font-size: 26px;
+    font-size: 22px;
   }
 `;
 
 const HeaderSubtitle = styled.p`
-  color: ${Theme.colors.text.subtle};
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
   margin: 0;
+  font-weight: 400;
 
   ${media.sm} {
-    font-size: 14px;
+    font-size: 13px;
   }
 `;
 
@@ -110,11 +110,12 @@ const LogoutButton = styled.button`
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: background 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
-  min-height: 44px; /* Touch-friendly */
+  min-height: 44px;
 
   ${media.sm} {
     padding: ${Theme.spacing.md} ${Theme.spacing.lg};
@@ -124,11 +125,6 @@ const LogoutButton = styled.button`
   &:hover {
     background: rgba(255, 255, 255, 0.15);
     border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
   }
 
   svg {

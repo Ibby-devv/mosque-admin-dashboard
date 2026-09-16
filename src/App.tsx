@@ -15,7 +15,6 @@ import Header from "./components/Header";
 import Tabs from "./components/Tabs";
 import SaveNotification from "./components/SaveNotification";
 import PrayerTimesTab from "./components/PrayerTimesTab";
-import JumuahTimesTab from "./components/JumuahTimesTab";
 import MosqueSettingsTab from "./components/MosqueSettingsTab";
 import EventsTab from "./components/EventsTab";
 import DonationsTab from './components/DonationsTab';
@@ -372,7 +371,7 @@ export default function AdminDashboard(): React.JSX.Element {
   return (
     <ErrorBoundary>
       <PermissionsContext.Provider value={permissionsValue}>
-        <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+        <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
           <Header onLogout={handleLogout} onHome={() => setActiveTab('prayer')} />
 
           <SaveNotification status={saveStatus} />
@@ -382,7 +381,12 @@ export default function AdminDashboard(): React.JSX.Element {
           <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
 
           <div
-            style={{ maxWidth: "72rem", margin: "0 auto", padding: "2rem 1.5rem" }}
+            style={{
+              maxWidth: "72rem",
+              margin: "0 auto",
+              padding: "1rem 1rem 1.5rem",
+            }}
+            className="admin-content"
           >
             {activeTab === "prayer" && (
               <PrayerTimesTab
@@ -393,15 +397,9 @@ export default function AdminDashboard(): React.JSX.Element {
                 mosqueSettings={mosqueSettings}
                 scheduledChanges={scheduledChanges}
                 onScheduledChangesUpdate={setScheduledChanges}
-              />
-            )}
-
-            {activeTab === "jumuah" && (
-              <JumuahTimesTab
                 jumuahTimes={jumuahTimes}
-                onChange={setJumuahTimes}
-                onSave={saveJumuahTimes}
-                saving={saving}
+                onJumuahChange={setJumuahTimes}
+                onJumuahSave={saveJumuahTimes}
               />
             )}
 

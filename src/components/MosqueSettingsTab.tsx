@@ -55,8 +55,8 @@ const SettingsForm = styled.div`
   gap: ${Theme.spacing.lg};
 `;
 
-const FormGroup = styled.div<{ marginBottom?: string }>`
-  margin-bottom: ${props => props.marginBottom || '0'};
+const FormGroup = styled.div<{ $marginBottom?: string }>`
+  margin-bottom: ${(props) => props.$marginBottom || '0'};
 `;
 
 const Label = styled.label`

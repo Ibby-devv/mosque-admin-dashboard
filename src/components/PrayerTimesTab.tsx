@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import styled, { keyframes, css } from 'styled-components';
-import { Save, RefreshCw, Globe, Calendar, X } from 'lucide-react';
+import styled from 'styled-components';
+import { Save, RefreshCw, Calendar, X } from 'lucide-react';
 import { PrayerTimesTabProps, ScheduledIqamaChange } from '../types';
 import TimeInput from './TimeInput';
+import JumuahSection from './JumuahSection';
 import { Theme, media } from '../constants/theme';
-import Card from './ui/Card';
+import { Panel, ScreenIntro, BlockLabel, PrimaryButton } from './ui/calm';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
 import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes } from 'adhan';
@@ -12,127 +13,122 @@ import { applyOffsetIqamasToPrayerTimes, calculateIqamaTime } from '../utils/pra
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 
-// Using shared Card component from ./ui/Card for consistent styling across tabs
+const Page = styled.div<{ $withSticky?: boolean }>`
+  padding-bottom: ${(props) =>
+    props.$withSticky
+      ? 'calc(88px + env(safe-area-inset-bottom, 0px))'
+      : Theme.spacing.xxl};
 
-const CardTitle = styled.h2`
-  font-size: ${Theme.typography.h2};
-  font-weight: bold;
-  color: ${Theme.colors.text.strong};
-  margin-bottom: ${Theme.spacing.lg};
-
-  ${media.sm} {
-    font-size: ${Theme.typography.h1};
-    margin-bottom: ${Theme.spacing.xl};
+  ${media.md} {
+    padding-bottom: ${Theme.spacing.xxl};
   }
 `;
 
-const InfoBox = styled.div`
+const StatusLine = styled.p`
+  margin: 0 0 ${Theme.spacing.lg};
+  font-size: 13px;
+  color: ${Theme.colors.text.muted};
+`;
+
+const WarningPanel = styled(Panel)`
   margin-bottom: ${Theme.spacing.lg};
-  padding: ${Theme.spacing.lg};
-  background: ${Theme.colors.accent.blueSoft};
-  border: 1px solid ${Theme.colors.accent.blue};
-  border-radius: ${Theme.radius.md};
-  font-size: ${Theme.typography.small};
-  color: ${Theme.colors.brand.navy[700]};
-  box-shadow: ${Theme.shadow.soft};
-
-  ${media.sm} {
-    font-size: ${Theme.typography.body};
-  }
+  background: ${Theme.colors.accent.amberSoft};
+  border-color: ${Theme.colors.brand.gold[400]};
 `;
 
-const AutoFetchBanner = styled.div`
-  margin-bottom: ${Theme.spacing.lg};
-  padding: ${Theme.spacing.lg};
-  background: #f0fdf4;
-  border: 1px solid ${Theme.colors.accent.green};
-  border-radius: ${Theme.radius.md};
-  display: flex;
-  align-items: center;
-  gap: ${Theme.spacing.md};
-  box-shadow: ${Theme.shadow.soft};
-`;
-
-const BannerIcon = styled.div`
-  flex-shrink: 0;
-`;
-
-const BannerContent = styled.div`
-  flex: 1;
-`;
-
-const BannerTitle = styled.div`
-  font-size: ${Theme.typography.body};
+const WarningTitle = styled.div`
+  font-size: 14px;
   font-weight: 600;
-  color: #15803d;
+  color: ${Theme.colors.status.warningDark};
   margin-bottom: ${Theme.spacing.xs};
 `;
 
-const BannerText = styled.div`
-  font-size: ${Theme.typography.small};
-  color: #166534;
+const WarningText = styled.div`
+  font-size: 13px;
+  color: ${Theme.colors.text.muted};
+  line-height: 1.45;
 `;
 
-const PrayerGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: ${Theme.spacing.lg};
-  margin-top: ${Theme.spacing.lg};
-
-  ${media.sm} {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  }
+const PrayerList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${Theme.spacing.md};
 `;
 
-const PrayerCard = styled.div`
-  border: 1px solid ${Theme.colors.border.base};
-  background: ${Theme.colors.surface.card};
-  border-radius: ${Theme.radius.md};
-  border-left: 4px solid ${Theme.colors.brand.navy[800]};
-  padding: ${Theme.spacing.lg};
-  transition: all 0.2s ease;
-  box-shadow: ${Theme.shadow.soft};
+const PrayerPanel = styled(Panel)`
+  display: flex;
+  flex-direction: column;
+  gap: ${Theme.spacing.md};
+`;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${Theme.shadow.card};
-    border-color: ${Theme.colors.brand.navy[700]};
-  }
+const PrayerHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: ${Theme.spacing.md};
 `;
 
 const PrayerName = styled.h3`
-  font-size: ${Theme.typography.h3};
-  font-weight: bold;
-  color: ${Theme.colors.text.strong};
-  margin-bottom: ${Theme.spacing.lg};
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
   text-transform: capitalize;
+  color: ${Theme.colors.text.strong};
 `;
 
-const TimeInputGroup = styled.div`
-  margin-bottom: ${Theme.spacing.md};
+const AdhanValue = styled.span`
+  font-size: 13px;
+  color: ${Theme.colors.text.muted};
+  font-variant-numeric: tabular-nums;
+`;
 
-  &:last-child {
-    margin-bottom: 0;
+const FieldGroup = styled.div``;
+
+const ChipRow = styled.div`
+  display: flex;
+  gap: ${Theme.spacing.sm};
+`;
+
+const Chip = styled.button<{ $active: boolean }>`
+  flex: 1;
+  min-height: 40px;
+  padding: ${Theme.spacing.sm} ${Theme.spacing.md};
+  border-radius: ${Theme.radius.pill};
+  border: 1px solid
+    ${(props) =>
+      props.$active ? Theme.colors.brand.navy[800] : Theme.colors.border.soft};
+  background: ${(props) =>
+      props.$active ? Theme.colors.brand.navy[800] : Theme.colors.surface.base};
+  color: ${(props) =>
+    props.$active ? Theme.colors.text.inverse : Theme.colors.text.muted};
+  font-family: inherit;
+  font-size: ${Theme.typography.small};
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
-const TimeLabel = styled.label`
-  display: block;
-  font-size: ${Theme.typography.body};
-  font-weight: 500;
-  color: ${Theme.colors.text.muted};
-  margin-bottom: ${Theme.spacing.xs};
+const OffsetRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${Theme.spacing.sm};
 `;
 
-const ReadOnlyTimeInput = styled.input`
-  width: 100%;
-  padding: ${Theme.spacing.md};
+const OffsetInput = styled.input`
+  width: 4.5rem;
   min-height: 44px;
-  border: 1px solid ${Theme.colors.border.base};
+  padding: ${Theme.spacing.md};
+  border: 1px solid ${Theme.colors.border.soft};
   border-radius: ${Theme.radius.md};
+  font-family: inherit;
   font-size: ${Theme.typography.body};
+  text-align: center;
   outline: none;
-  transition: all 0.2s;
   box-sizing: border-box;
 
   &:focus {
@@ -143,242 +139,51 @@ const ReadOnlyTimeInput = styled.input`
   &:disabled {
     background: ${Theme.colors.surface.muted};
     color: ${Theme.colors.text.muted};
-    cursor: not-allowed;
-    border-color: ${Theme.colors.border.soft};
   }
 `;
 
-const IqamaTypeSelector = styled.div`
-  display: flex;
-  gap: ${Theme.spacing.sm};
-  margin-bottom: ${Theme.spacing.md};
-`;
-
-const TypeButton = styled.button<{ $active: boolean }>`
-  flex: 1;
-  padding: ${Theme.spacing.md};
-  min-height: 44px;
-  border: 1px solid ${props => props.$active ? Theme.colors.brand.navy[700] : Theme.colors.border.base};
-  background: ${props => props.$active ? Theme.colors.brand.navy[700] : Theme.colors.surface.card};
-  color: ${props => props.$active ? 'white' : Theme.colors.text.muted};
-  border-radius: ${Theme.radius.sm};
-  font-size: ${Theme.typography.small};
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  ${media.sm} {
-    font-size: ${Theme.typography.body};
-  }
-
-  &:hover {
-    border-color: ${Theme.colors.brand.navy[700]};
-    color: ${props => props.$active ? 'white' : Theme.colors.brand.navy[700]};
-  }
-`;
-
-const OffsetInputContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${Theme.spacing.sm};
-`;
-
-const OffsetInput = styled.input`
-  width: 4rem;
-  padding: ${Theme.spacing.md};
-  min-height: 44px;
-  border: 1px solid ${Theme.colors.border.base};
-  border-radius: ${Theme.radius.md};
-  font-size: ${Theme.typography.body};
-  outline: none;
-  transition: all 0.2s;
-  box-sizing: border-box;
-  text-align: center;
-
-  &:focus {
-    border-color: ${Theme.colors.brand.navy[700]};
-    box-shadow: 0 0 0 3px ${Theme.colors.accent.blueSoft};
-  }
-`;
-
-const OffsetLabel = styled.span`
-  font-size: ${Theme.typography.body};
-  color: ${Theme.colors.text.muted};
-`;
-
-const CalculatedTime = styled.div`
+const OffsetHint = styled.div`
   margin-top: ${Theme.spacing.sm};
-  padding: ${Theme.spacing.sm};
-  background: #f0fdf4;
-  border: 1px solid ${Theme.colors.accent.green};
-  border-radius: ${Theme.radius.sm};
-  font-size: ${Theme.typography.small};
-  color: #15803d;
-  text-align: center;
+  font-size: 13px;
+  color: ${Theme.colors.brand.navy[600]};
 `;
 
-const ButtonContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${Theme.spacing.md};
-  margin-top: ${Theme.spacing.xl};
-
-  ${media.sm} {
-    flex-direction: row;
-  }
-`;
-
-const RefreshButton = styled.button`
-  display: flex;
+const ScheduleToggle = styled.button`
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: ${Theme.spacing.sm};
-  background: ${Theme.colors.surface.card};
-  color: ${Theme.colors.brand.navy[700]};
-  border: 2px solid ${Theme.colors.brand.navy[700]};
-  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
-  min-height: 48px;
-  border-radius: ${Theme.radius.md};
-  font-weight: 600;
-  font-size: ${Theme.typography.body};
-  cursor: pointer;
-  transition: all 0.2s;
-
-  ${media.sm} {
-    flex: 1;
-  }
-
-  &:hover {
-    background: ${Theme.colors.brand.navy[700]};
-    color: white;
-    transform: translateY(-1px);
-    box-shadow: ${Theme.shadow.soft};
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  &:disabled {
-    background: ${Theme.colors.surface.muted};
-    color: ${Theme.colors.text.subtle};
-    border-color: ${Theme.colors.border.base};
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
-
-// Pulse animation
-const pulse = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
-  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-`;
-
-const SaveButton = styled.button<{ $dirty?: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${Theme.spacing.sm};
-  background: ${props => props.$dirty ? Theme.colors.status.warning : Theme.colors.brand.navy[700]};
-  color: white;
-  padding: ${Theme.spacing.md} ${Theme.spacing.xl};
-  min-height: 48px;
-  border-radius: ${Theme.radius.md};
-  font-weight: 600;
-  font-size: ${Theme.typography.body};
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  ${media.sm} {
-    flex: 1;
-  }
-
-  &:hover {
-    background: ${props => props.$dirty ? Theme.colors.brand.gold[600] : Theme.colors.brand.navy[600]};
-    transform: translateY(-1px);
-    box-shadow: ${Theme.shadow.soft};
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  &:disabled {
-    background: ${Theme.colors.border.medium};
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  ${props => props.$dirty && css`animation: ${pulse} 2s infinite;`}
-`;
-
-const APIStatusBox = styled.div<{ $success: boolean }>`
-  margin-top: ${Theme.spacing.lg};
-  padding: ${Theme.spacing.md};
-  background: ${props => props.$success ? Theme.colors.status.successLight : Theme.colors.status.errorLight};
-  border: 1px solid ${props => props.$success ? Theme.colors.status.success : Theme.colors.status.error};
-  border-radius: ${Theme.radius.md};
-  font-size: ${Theme.typography.body};
-  color: ${props => props.$success ? Theme.colors.status.successDark : Theme.colors.status.errorDark};
-  text-align: center;
-
-  ${media.sm} {
-    padding: ${Theme.spacing.lg};
-  }
-`;
-
-const ScheduleSection = styled.div`
-  margin-top: ${Theme.spacing.md};
-  padding-top: ${Theme.spacing.md};
-  border-top: 1px solid ${Theme.colors.border.soft};
-`;
-
-const ScheduleButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: ${Theme.spacing.xs};
-  width: 100%;
-  padding: ${Theme.spacing.sm} ${Theme.spacing.md};
-  background: ${Theme.colors.surface.muted};
-  color: ${Theme.colors.brand.navy[700]};
-  border: 1px solid ${Theme.colors.border.base};
-  border-radius: ${Theme.radius.sm};
-  font-size: ${Theme.typography.small};
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: 36px;
+  font-family: inherit;
+  font-size: 13px;
   font-weight: 500;
+  color: ${Theme.colors.brand.navy[700]};
   cursor: pointer;
-  transition: all 0.2s;
 
   &:hover {
-    background: ${Theme.colors.brand.navy[50]};
-    border-color: ${Theme.colors.brand.navy[700]};
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    color: ${Theme.colors.brand.navy[800]};
   }
 `;
 
-const ScheduleInputGroup = styled.div`
-  margin-top: ${Theme.spacing.sm};
+const ScheduleBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${Theme.spacing.sm};
+  padding-top: ${Theme.spacing.sm};
+  border-top: 1px solid ${Theme.colors.border.soft};
 `;
 
 const DateInput = styled.input`
   width: 100%;
-  max-width: 100%;
-  padding: ${Theme.spacing.md};
   min-height: 44px;
-  border: 1px solid ${Theme.colors.border.base};
+  padding: ${Theme.spacing.md};
+  border: 1px solid ${Theme.colors.border.soft};
   border-radius: ${Theme.radius.md};
+  font-family: inherit;
   font-size: ${Theme.typography.body};
   outline: none;
-  transition: all 0.2s;
   box-sizing: border-box;
 
   &:focus {
@@ -387,26 +192,29 @@ const DateInput = styled.input`
   }
 `;
 
-const ScheduleActions = styled.div`
-  display: flex;
-  gap: ${Theme.spacing.xs};
+const ScheduleHint = styled.div`
+  font-size: 12px;
+  color: ${Theme.colors.text.muted};
+  line-height: 1.4;
 `;
 
-const ScheduleSaveButton = styled.button`
-  flex: 1;
-  padding: ${Theme.spacing.sm};
-  background: ${Theme.colors.brand.navy[700]};
-  color: white;
-  border: none;
-  border-radius: ${Theme.radius.sm};
-  font-size: ${Theme.typography.small};
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+const ScheduleActions = styled.div`
+  display: flex;
+  gap: ${Theme.spacing.sm};
+`;
 
-  &:hover {
-    background: ${Theme.colors.brand.navy[600]};
-  }
+const SchedulePrimary = styled.button`
+  flex: 1;
+  min-height: 40px;
+  padding: ${Theme.spacing.sm};
+  border: none;
+  border-radius: ${Theme.radius.md};
+  background: ${Theme.colors.brand.navy[800]};
+  color: white;
+  font-family: inherit;
+  font-size: ${Theme.typography.small};
+  font-weight: 600;
+  cursor: pointer;
 
   &:disabled {
     opacity: 0.5;
@@ -414,45 +222,39 @@ const ScheduleSaveButton = styled.button`
   }
 `;
 
-const ScheduleCancelButton = styled.button`
+const ScheduleSecondary = styled.button`
   flex: 1;
+  min-height: 40px;
   padding: ${Theme.spacing.sm};
+  border: 1px solid ${Theme.colors.border.soft};
+  border-radius: ${Theme.radius.md};
   background: transparent;
   color: ${Theme.colors.text.muted};
-  border: 1px solid ${Theme.colors.border.base};
-  border-radius: ${Theme.radius.sm};
+  font-family: inherit;
   font-size: ${Theme.typography.small};
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
 
   &:hover {
     background: ${Theme.colors.surface.muted};
   }
 `;
 
-const ScheduledChangeBox = styled.div`
-  margin-top: ${Theme.spacing.sm};
-  padding: ${Theme.spacing.sm};
-  background: #fff7ed;
-  border: 1px solid ${Theme.colors.status.warning};
-  border-radius: ${Theme.radius.sm};
+const ScheduledBox = styled.div`
+  padding: ${Theme.spacing.md};
+  background: ${Theme.colors.accent.amberSoft};
+  border: 1px solid ${Theme.colors.brand.gold[400]};
+  border-radius: ${Theme.radius.md};
   font-size: ${Theme.typography.small};
 `;
 
-const ScheduledChangeHeader = styled.div`
+const ScheduledHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: flex-start;
   margin-bottom: ${Theme.spacing.xs};
-`;
-
-const ScheduledChangeTitle = styled.div`
   font-weight: 600;
   color: ${Theme.colors.status.warningDark};
-  display: flex;
-  align-items: center;
-  gap: ${Theme.spacing.xs};
 `;
 
 const DeleteScheduleButton = styled.button`
@@ -463,42 +265,132 @@ const DeleteScheduleButton = styled.button`
   padding: 0;
   display: flex;
   align-items: center;
-  transition: opacity 0.2s;
+`;
 
-  &:hover {
-    opacity: 0.7;
+const ScheduledDetails = styled.div`
+  color: ${Theme.colors.text.muted};
+  line-height: 1.45;
+`;
+
+const StatusBox = styled.div<{ $success: boolean }>`
+  margin-top: ${Theme.spacing.lg};
+  padding: ${Theme.spacing.md};
+  background: ${(props) =>
+    props.$success ? Theme.colors.status.successLight : Theme.colors.status.errorLight};
+  border: 1px solid
+    ${(props) => (props.$success ? Theme.colors.status.success : Theme.colors.status.error)};
+  border-radius: ${Theme.radius.md};
+  font-size: ${Theme.typography.body};
+  color: ${(props) =>
+    props.$success ? Theme.colors.status.successDark : Theme.colors.status.errorDark};
+  text-align: center;
+`;
+
+const StickyBar = styled.div`
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  padding-bottom: calc(${Theme.spacing.md} + env(safe-area-inset-bottom, 0px));
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid ${Theme.colors.border.soft};
+  display: flex;
+  gap: ${Theme.spacing.sm};
+
+  ${media.md} {
+    position: static;
+    margin-top: ${Theme.spacing.xl};
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    border-top: none;
   }
 `;
 
-const ScheduledChangeDetails = styled.div`
-  color: ${Theme.colors.text.muted};
-  line-height: 1.4;
+const StickyInner = styled.div`
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  display: flex;
+  gap: ${Theme.spacing.sm};
 `;
 
-export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, mosqueSettings, scheduledChanges: propsScheduledChanges, onScheduledChangesUpdate }: PrayerTimesTabProps): React.JSX.Element {
+const RefreshButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${Theme.spacing.sm};
+  flex: 1;
+  min-height: 48px;
+  padding: ${Theme.spacing.md} ${Theme.spacing.lg};
+  border: 1px solid ${Theme.colors.border.soft};
+  border-radius: ${Theme.radius.lg};
+  background: ${Theme.colors.surface.base};
+  color: ${Theme.colors.brand.navy[800]};
+  font-family: inherit;
+  font-size: ${Theme.typography.body};
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: ${Theme.colors.surface.soft};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  span {
+    display: none;
+
+    ${media.sm} {
+      display: inline;
+    }
+  }
+`;
+
+const SaveSlot = styled.div`
+  flex: 1.4;
+`;
+
+export default function PrayerTimesTab({
+  prayerTimes,
+  onChange,
+  onSave,
+  saving,
+  mosqueSettings,
+  scheduledChanges: propsScheduledChanges,
+  onScheduledChangesUpdate,
+  jumuahTimes,
+  onJumuahChange,
+  onJumuahSave,
+}: PrayerTimesTabProps): React.JSX.Element {
   const { hasPermission } = usePermissions();
+  const canViewPrayer = hasPermission(Permission.VIEW_PRAYER_TIMES);
   const canEdit = hasPermission(Permission.EDIT_PRAYER_TIMES);
-  
+
   const prayers: string[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
   const [fetchingPrayerTimes, setFetchingPrayerTimes] = useState(false);
-  const [fetchStatus, setFetchStatus] = useState<{ success: boolean; message: string } | null>(null);
-  // Keep a snapshot of the last-saved prayerTimes to detect unsaved changes
+  const [fetchStatus, setFetchStatus] = useState<{ success: boolean; message: string } | null>(
+    null
+  );
   const initialSnapshotRef = useRef<string>(JSON.stringify(prayerTimes));
-  
-  // Scheduling state - use props if provided, otherwise fallback to empty object
+
   const scheduledChanges = propsScheduledChanges || {};
   const [schedulingPrayer, setSchedulingPrayer] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleTime, setScheduleTime] = useState(''); // Separate time picker for scheduling
+  const [scheduleTime, setScheduleTime] = useState('');
   const [isScheduling, setIsScheduling] = useState(false);
 
-  // Ensure initial snapshot is set on mount
   useEffect(() => {
     initialSnapshotRef.current = JSON.stringify(prayerTimes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When saving completes, update the snapshot to reflect the saved state
   useEffect(() => {
     if (!saving) {
       initialSnapshotRef.current = JSON.stringify(prayerTimes);
@@ -510,10 +402,10 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       const getScheduledIqamaChanges = httpsCallable(functions, 'getScheduledIqamaChanges');
       const result = await getScheduledIqamaChanges({ includeApplied: false });
       const data = result.data as { success: boolean; schedules: ScheduledIqamaChange[] };
-      
+
       if (data.success && data.schedules) {
         const changesMap: Record<string, ScheduledIqamaChange> = {};
-        data.schedules.forEach(schedule => {
+        data.schedules.forEach((schedule) => {
           changesMap[schedule.prayer] = schedule;
         });
         if (onScheduledChangesUpdate) {
@@ -527,7 +419,6 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
 
   const handleScheduleClick = (prayer: string) => {
     setSchedulingPrayer(prayer);
-    // Set minimum date to tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setScheduleDate(tomorrow.toISOString().split('T')[0]);
@@ -544,19 +435,15 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
 
     setIsScheduling(true);
     try {
-      const prayer = schedulingPrayer;
-
-      // Send date string to backend - let backend handle timezone conversion
-      // Backend will convert this to midnight in the mosque's configured timezone
       const createScheduledIqamaChange = httpsCallable(functions, 'createScheduledIqamaChange');
       const result = await createScheduledIqamaChange({
-        prayer: prayer,
-        effectiveDate: scheduleDate, // Send as YYYY-MM-DD string
-        iqama_time: scheduleTime
+        prayer: schedulingPrayer,
+        effectiveDate: scheduleDate,
+        iqama_time: scheduleTime,
       });
 
       const data = result.data as { success: boolean; id: string; message: string };
-      
+
       if (data.success) {
         setFetchStatus({ success: true, message: data.message });
         await loadScheduledChanges();
@@ -566,16 +453,16 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       }
     } catch (error: any) {
       console.error('Error scheduling change:', error);
-      setFetchStatus({ 
-        success: false, 
-        message: error.message || 'Failed to schedule change' 
+      setFetchStatus({
+        success: false,
+        message: error.message || 'Failed to schedule change',
       });
     } finally {
       setIsScheduling(false);
     }
   };
 
-  const handleDeleteSchedule = async (scheduleId: string, prayer: string) => {
+  const handleDeleteSchedule = async (scheduleId: string) => {
     if (!window.confirm('Are you sure you want to delete this scheduled change?')) {
       return;
     }
@@ -584,16 +471,16 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       const deleteScheduledIqamaChange = httpsCallable(functions, 'deleteScheduledIqamaChange');
       const result = await deleteScheduledIqamaChange({ id: scheduleId });
       const data = result.data as { success: boolean; message: string };
-      
+
       if (data.success) {
         setFetchStatus({ success: true, message: 'Scheduled change deleted' });
         await loadScheduledChanges();
       }
     } catch (error: any) {
       console.error('Error deleting scheduled change:', error);
-      setFetchStatus({ 
-        success: false, 
-        message: error.message || 'Failed to delete scheduled change' 
+      setFetchStatus({
+        success: false,
+        message: error.message || 'Failed to delete scheduled change',
       });
     }
   };
@@ -606,10 +493,8 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
       if (maybePromise && typeof maybePromise.then === 'function') {
         await maybePromise;
       }
-      // update snapshot after save (or immediately if onSave is not async)
       initialSnapshotRef.current = JSON.stringify(prayerTimes);
     } catch (err) {
-      // If save failed, keep dirty state so user knows changes weren't saved
       console.error('Save failed', err);
     }
   };
@@ -617,14 +502,14 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
   const handleTimeChange = (prayer: string, type: 'adhan' | 'iqama', value: string): void => {
     onChange({
       ...prayerTimes,
-      [`${prayer}_${type}`]: value
+      [`${prayer}_${type}`]: value,
     } as any);
   };
 
   const handleIqamaTypeChange = (prayer: string, type: 'fixed' | 'offset'): void => {
     const updates: any = {
       ...prayerTimes,
-      [`${prayer}_iqama_type`]: type
+      [`${prayer}_iqama_type`]: type,
     };
 
     if (type === 'offset') {
@@ -637,7 +522,9 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
             : 15;
       updates[`${prayer}_iqama_offset`] = offset;
 
-      const adhanTime = prayerTimes[`${prayer}_adhan` as keyof typeof prayerTimes] as string | undefined;
+      const adhanTime = prayerTimes[`${prayer}_adhan` as keyof typeof prayerTimes] as
+        | string
+        | undefined;
       const computedIqama = calculateIqamaTime(adhanTime, offset);
       if (computedIqama !== '--:--') {
         updates[`${prayer}_iqama`] = computedIqama;
@@ -650,7 +537,9 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
   const handleOffsetChange = (prayer: string, value: string): void => {
     const offset = parseInt(value, 10);
     const safeOffset = Number.isFinite(offset) ? offset : 0;
-    const adhanTime = prayerTimes[`${prayer}_adhan` as keyof typeof prayerTimes] as string | undefined;
+    const adhanTime = prayerTimes[`${prayer}_adhan` as keyof typeof prayerTimes] as
+      | string
+      | undefined;
     const computedIqama = calculateIqamaTime(adhanTime, safeOffset);
 
     const updates: any = {
@@ -669,7 +558,7 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
     if (!mosqueSettings?.latitude || !mosqueSettings?.longitude) {
       setFetchStatus({
         success: false,
-        message: 'Please set mosque location in Settings tab first'
+        message: 'Please set mosque location in Settings first',
       });
       return;
     }
@@ -678,36 +567,19 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
     setFetchStatus(null);
 
     try {
-      console.log('Calculating prayer times using Adhan package...', {
-        latitude: mosqueSettings.latitude,
-        longitude: mosqueSettings.longitude,
-        method: mosqueSettings.calculation_method,
-      });
-
-      // Set up coordinates
-      const coordinates = new Coordinates(
-        mosqueSettings.latitude,
-        mosqueSettings.longitude
-      );
-
-      // Get calculation method (default to MuslimWorldLeague if not specified)
+      const coordinates = new Coordinates(mosqueSettings.latitude, mosqueSettings.longitude);
       const methodName = mosqueSettings.calculation_method || 'MuslimWorldLeague';
       const params = CalculationMethod[methodName as keyof typeof CalculationMethod]();
-
-      // Calculate prayer times for today IN THE MOSQUE'S TIMEZONE
-      // This ensures we calculate for the same day as the cloud function
       const mosqueTimezone = mosqueSettings.timezone || 'Australia/Sydney';
-      
-      // Get today's date in the mosque's timezone
+
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { timeZone: mosqueTimezone });
-      const date = new Date(dateString); // This creates a Date at midnight in the mosque's timezone
-      
+      const date = new Date(dateString);
+
       const adhanPrayerTimes = new AdhanPrayerTimes(coordinates, date, params);
 
-      // Convert Date objects to 12-hour format strings in mosque timezone
-      const formatTime = (date: Date): string => {
-        return date.toLocaleTimeString('en-US', {
+      const formatTime = (d: Date): string => {
+        return d.toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
           hour12: true,
@@ -715,7 +587,6 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
         });
       };
 
-      // Update all Adhan times and recompute offset-based Iqama times
       const updatedPrayerTimes = applyOffsetIqamasToPrayerTimes({
         ...prayerTimes,
         fajr_adhan: formatTime(adhanPrayerTimes.fajr),
@@ -727,24 +598,15 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
 
       onChange(updatedPrayerTimes);
 
-      console.log('Prayer times calculated successfully:', {
-        method: methodName,
-        fajr: formatTime(adhanPrayerTimes.fajr),
-        dhuhr: formatTime(adhanPrayerTimes.dhuhr),
-        asr: formatTime(adhanPrayerTimes.asr),
-        maghrib: formatTime(adhanPrayerTimes.maghrib),
-        isha: formatTime(adhanPrayerTimes.isha),
-      });
-
       setFetchStatus({
         success: true,
-        message: 'Prayer times calculated successfully! Click "Save Prayer Times" to save changes.'
+        message: 'Prayer times calculated. Tap Save to keep changes.',
       });
     } catch (error: any) {
       console.error('Error calculating prayer times:', error);
       setFetchStatus({
         success: false,
-        message: 'Failed to calculate prayer times. Please check mosque settings.'
+        message: 'Failed to calculate prayer times. Please check mosque settings.',
       });
     } finally {
       setFetchingPrayerTimes(false);
@@ -753,228 +615,233 @@ export default function PrayerTimesTab({ prayerTimes, onChange, onSave, saving, 
 
   const hasLocationSettings = mosqueSettings?.latitude && mosqueSettings?.longitude;
 
+  const lastUpdatedLabel = (() => {
+    if (!prayerTimes?.last_updated) return null;
+    const timestamp = prayerTimes.last_updated as any;
+    const date = timestamp?.toDate
+      ? timestamp.toDate()
+      : new Date(timestamp.seconds * 1000);
+    return date.toLocaleDateString('en-AU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  })();
+
   return (
-    <Card>
-      <CardTitle>Daily Prayer Times</CardTitle>
-      
-      {hasLocationSettings ? (
-        <AutoFetchBanner>
-          <BannerIcon>
-            <Globe size={24} color="#15803d" />
-          </BannerIcon>
-          <BannerContent>
-            <BannerTitle>🌍 Prayer Times Auto-Calculated</BannerTitle>
-            <BannerText>
-              Adhan times are automatically calculated using the Adhan package based on your mosque location.
-              {prayerTimes?.last_updated && ` Last updated: ${(() => {
-                const timestamp = prayerTimes.last_updated as any;
-                const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
-                return date.toLocaleDateString('en-AU', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                });
-              })()}`}
-            </BannerText>
-          </BannerContent>
-        </AutoFetchBanner>
-      ) : (
-        <InfoBox>
-          <strong>⚠️ Location Not Set</strong>
-          <div style={{ marginTop: '0.5rem' }}>
-            Please go to Settings tab and configure your mosque location to enable automatic prayer time calculation.
-          </div>
-        </InfoBox>
-      )}
+    <Page $withSticky={canViewPrayer && canEdit}>
+      <ScreenIntro
+        title="Prayer Times"
+        subtitle="Adhan is calculated from location. You set iqama for each prayer."
+      />
 
-      <InfoBox>
-        <strong>How It Works:</strong>
-        <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem' }}>
-          <li><strong>Adhan times:</strong> Automatically calculated (read-only)</li>
-          <li><strong>Iqama times:</strong> You control these - set as fixed time or offset from Adhan</li>
-          <li><strong>Updates:</strong> Prayer times auto-update daily when users open the mobile app</li>
-        </ul>
-      </InfoBox>
+      {canViewPrayer && (
+        <>
+          {hasLocationSettings ? (
+            <StatusLine>
+              Adhan auto-calculated
+              {lastUpdatedLabel ? ` · Last updated ${lastUpdatedLabel}` : ''}
+            </StatusLine>
+          ) : (
+            <WarningPanel $compact>
+              <WarningTitle>Location not set</WarningTitle>
+              <WarningText>
+                Configure mosque location in Settings to enable automatic adhan calculation.
+              </WarningText>
+            </WarningPanel>
+          )}
 
-      <PrayerGrid>
-        {prayers.map(prayer => {
-          const iqamaType = (prayerTimes as any)[`${prayer}_iqama_type`] || 'fixed';
-          const iqamaOffset = (prayerTimes as any)[`${prayer}_iqama_offset`] || (prayer === 'maghrib' ? 5 : 15);
-          const adhanTime = (prayerTimes as any)[`${prayer}_adhan`];
-          const calculatedIqama = calculateIqamaTime(adhanTime, iqamaOffset);
-          const scheduledChange = scheduledChanges[prayer];
-          const isSchedulingThis = schedulingPrayer === prayer;
+          <BlockLabel>Daily</BlockLabel>
+          <PrayerList>
+            {prayers.map((prayer) => {
+              const iqamaType = (prayerTimes as any)[`${prayer}_iqama_type`] || 'fixed';
+              const iqamaOffset =
+                (prayerTimes as any)[`${prayer}_iqama_offset`] ||
+                (prayer === 'maghrib' ? 5 : 15);
+              const adhanTime = (prayerTimes as any)[`${prayer}_adhan`];
+              const calculatedIqama = calculateIqamaTime(adhanTime, iqamaOffset);
+              const scheduledChange = scheduledChanges[prayer];
+              const isSchedulingThis = schedulingPrayer === prayer;
 
-          return (
-            <PrayerCard key={prayer}>
-              <PrayerName>{prayer}</PrayerName>
-              
-              <TimeInputGroup>
-                <TimeLabel>Adhan (Auto-calculated)</TimeLabel>
-                <ReadOnlyTimeInput
-                  type="text"
-                  value={(prayerTimes as any)[`${prayer}_adhan`] || '--:--'}
-                  disabled
-                  placeholder="Will be auto-fetched"
-                />
-              </TimeInputGroup>
+              return (
+                <PrayerPanel key={prayer} $compact>
+                  <PrayerHeader>
+                    <PrayerName>{prayer}</PrayerName>
+                    <AdhanValue>Adhan {adhanTime || '—'}</AdhanValue>
+                  </PrayerHeader>
 
-              <TimeInputGroup>
-                <TimeLabel>Iqama Type</TimeLabel>
-                <IqamaTypeSelector>
-                  <TypeButton
-                    type="button"
-                    $active={iqamaType === 'fixed'}
-                    onClick={() => handleIqamaTypeChange(prayer, 'fixed')}
-                    disabled={!canEdit}
-                  >
-                    Fixed Time
-                  </TypeButton>
-                  <TypeButton
-                    type="button"
-                    $active={iqamaType === 'offset'}
-                    onClick={() => handleIqamaTypeChange(prayer, 'offset')}
-                    disabled={!canEdit}
-                  >
-                    Offset
-                  </TypeButton>
-                </IqamaTypeSelector>
-              </TimeInputGroup>
+                  <FieldGroup>
+                    <BlockLabel style={{ marginBottom: Theme.spacing.sm }}>Iqama</BlockLabel>
+                    <ChipRow>
+                      <Chip
+                        type="button"
+                        $active={iqamaType === 'fixed'}
+                        onClick={() => handleIqamaTypeChange(prayer, 'fixed')}
+                        disabled={!canEdit}
+                      >
+                        Fixed
+                      </Chip>
+                      <Chip
+                        type="button"
+                        $active={iqamaType === 'offset'}
+                        onClick={() => handleIqamaTypeChange(prayer, 'offset')}
+                        disabled={!canEdit}
+                      >
+                        Offset
+                      </Chip>
+                    </ChipRow>
+                  </FieldGroup>
 
-              {iqamaType === 'fixed' ? (
-                <TimeInputGroup>
-                  <TimeLabel>Iqama</TimeLabel>
-                  <TimeInput
-                    value={(prayerTimes as any)[`${prayer}_iqama`] || ''}
-                    onChange={(value) => handleTimeChange(prayer, 'iqama', value)}
-                    placeholder="Select time"
-                    disabled={!canEdit}
-                  />
-                </TimeInputGroup>
-              ) : (
-                <TimeInputGroup>
-                  <TimeLabel>Minutes After Adhan</TimeLabel>
-                  <OffsetInputContainer>
-                    <OffsetInput
-                      type="number"
-                      min="0"
-                      max="120"
-                      value={iqamaOffset}
-                      onChange={(e) => handleOffsetChange(prayer, e.target.value)}
+                  {iqamaType === 'fixed' ? (
+                    <TimeInput
+                      value={(prayerTimes as any)[`${prayer}_iqama`] || ''}
+                      onChange={(value) => handleTimeChange(prayer, 'iqama', value)}
+                      placeholder="Select time"
                       disabled={!canEdit}
                     />
-                    <OffsetLabel>minutes</OffsetLabel>
-                  </OffsetInputContainer>
-                  {adhanTime && (
-                    <CalculatedTime>
-                      Iqama will be at {calculatedIqama}
-                    </CalculatedTime>
+                  ) : (
+                    <div>
+                      <OffsetRow>
+                        <OffsetInput
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={iqamaOffset}
+                          onChange={(e) => handleOffsetChange(prayer, e.target.value)}
+                          disabled={!canEdit}
+                        />
+                        <span style={{ fontSize: 14, color: Theme.colors.text.muted }}>
+                          minutes after adhan
+                        </span>
+                      </OffsetRow>
+                      {adhanTime && (
+                        <OffsetHint>Iqama at {calculatedIqama}</OffsetHint>
+                      )}
+                    </div>
                   )}
-                </TimeInputGroup>
-              )}
 
-              {canEdit && iqamaType === 'fixed' && (
-                <ScheduleSection>
-                  {!scheduledChange && !isSchedulingThis && (
-                    <ScheduleButton onClick={() => handleScheduleClick(prayer)}>
-                      <Calendar size={16} />
-                      Schedule for Future Date
-                    </ScheduleButton>
-                  )}
-
-                  {isSchedulingThis && (
-                    <ScheduleInputGroup>
-                      <TimeLabel>New Iqama Time</TimeLabel>
-                      <TimeInput
-                        value={scheduleTime}
-                        onChange={(value) => setScheduleTime(value)}
-                      />
-                      <TimeLabel style={{ marginTop: Theme.spacing.md }}>Effective Date</TimeLabel>
-                      <DateInput
-                        type="date"
-                        value={scheduleDate}
-                        onChange={(e) => setScheduleDate(e.target.value)}
-                        min={(() => {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          return tomorrow.toISOString().split('T')[0];
-                        })()}
-                      />
-                      <div style={{ fontSize: Theme.typography.small, color: Theme.colors.text.muted }}>
-                        Change will apply at {prayer} time on the day before this date
-                      </div>
-                      <ScheduleActions>
-                        <ScheduleSaveButton 
-                          onClick={handleSaveSchedule}
-                          disabled={isScheduling || !scheduleDate || !scheduleTime}
+                  {canEdit && iqamaType === 'fixed' && (
+                    <div>
+                      {!scheduledChange && !isSchedulingThis && (
+                        <ScheduleToggle
+                          type="button"
+                          onClick={() => handleScheduleClick(prayer)}
                         >
-                          {isScheduling ? 'Scheduling...' : 'Schedule'}
-                        </ScheduleSaveButton>
-                        <ScheduleCancelButton onClick={handleCancelSchedule}>
-                          Cancel
-                        </ScheduleCancelButton>
-                      </ScheduleActions>
-                    </ScheduleInputGroup>
-                  )}
-
-                  {scheduledChange && (
-                    <ScheduledChangeBox>
-                      <ScheduledChangeHeader>
-                        <ScheduledChangeTitle>
                           <Calendar size={14} />
-                          Scheduled Change
-                        </ScheduledChangeTitle>
-                        <DeleteScheduleButton 
-                          onClick={() => handleDeleteSchedule(scheduledChange.id, prayer)}
-                          title="Delete scheduled change"
-                        >
-                          <X size={16} />
-                        </DeleteScheduleButton>
-                      </ScheduledChangeHeader>
-                      <ScheduledChangeDetails>
-                        <div>
-                          <strong>Effective:</strong> {new Date(scheduledChange.effectiveDate as number).toLocaleDateString('en-AU')}
-                        </div>
-                        <div>
-                          <strong>New iqama:</strong> {scheduledChange.iqama_time}
-                        </div>
-                        <div style={{ marginTop: '0.25rem', fontSize: '0.85em' }}>
-                          Will apply at {prayer} time on {(() => {
-                            const applyDate = new Date(scheduledChange.effectiveDate as number);
-                            applyDate.setDate(applyDate.getDate() - 1);
-                            return applyDate.toLocaleDateString('en-AU');
-                          })()}
-                        </div>
-                      </ScheduledChangeDetails>
-                    </ScheduledChangeBox>
-                  )}
-                </ScheduleSection>
-              )}
-            </PrayerCard>
-          );
-        })}
-      </PrayerGrid>
+                          Schedule…
+                        </ScheduleToggle>
+                      )}
 
-      {fetchStatus && (
-        <APIStatusBox $success={fetchStatus.success}>
-          {fetchStatus.message}
-        </APIStatusBox>
+                      {isSchedulingThis && (
+                        <ScheduleBody>
+                          <BlockLabel style={{ marginBottom: 0 }}>New iqama</BlockLabel>
+                          <TimeInput
+                            value={scheduleTime}
+                            onChange={(value) => setScheduleTime(value)}
+                          />
+                          <BlockLabel style={{ marginBottom: 0, marginTop: Theme.spacing.sm }}>
+                            Effective date
+                          </BlockLabel>
+                          <DateInput
+                            type="date"
+                            value={scheduleDate}
+                            onChange={(e) => setScheduleDate(e.target.value)}
+                            min={(() => {
+                              const tomorrow = new Date();
+                              tomorrow.setDate(tomorrow.getDate() + 1);
+                              return tomorrow.toISOString().split('T')[0];
+                            })()}
+                          />
+                          <ScheduleHint>
+                            Applies at {prayer} time on the day before this date.
+                          </ScheduleHint>
+                          <ScheduleActions>
+                            <SchedulePrimary
+                              type="button"
+                              onClick={handleSaveSchedule}
+                              disabled={isScheduling || !scheduleDate || !scheduleTime}
+                            >
+                              {isScheduling ? 'Scheduling…' : 'Schedule'}
+                            </SchedulePrimary>
+                            <ScheduleSecondary type="button" onClick={handleCancelSchedule}>
+                              Cancel
+                            </ScheduleSecondary>
+                          </ScheduleActions>
+                        </ScheduleBody>
+                      )}
+
+                      {scheduledChange && (
+                        <ScheduledBox>
+                          <ScheduledHeader>
+                            <span>
+                              <Calendar size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                              Scheduled
+                            </span>
+                            <DeleteScheduleButton
+                              type="button"
+                              onClick={() => handleDeleteSchedule(scheduledChange.id)}
+                              title="Delete scheduled change"
+                            >
+                              <X size={16} />
+                            </DeleteScheduleButton>
+                          </ScheduledHeader>
+                          <ScheduledDetails>
+                            <div>
+                              Effective:{' '}
+                              {new Date(scheduledChange.effectiveDate as number).toLocaleDateString(
+                                'en-AU'
+                              )}
+                            </div>
+                            <div>New iqama: {scheduledChange.iqama_time}</div>
+                          </ScheduledDetails>
+                        </ScheduledBox>
+                      )}
+                    </div>
+                  )}
+                </PrayerPanel>
+              );
+            })}
+          </PrayerList>
+
+          {fetchStatus && (
+            <StatusBox $success={fetchStatus.success}>{fetchStatus.message}</StatusBox>
+          )}
+
+          {canEdit && (
+            <StickyBar>
+              <StickyInner>
+                <RefreshButton
+                  type="button"
+                  onClick={fetchAllPrayerTimes}
+                  disabled={fetchingPrayerTimes || !hasLocationSettings}
+                >
+                  <RefreshCw size={18} />
+                  <span>{fetchingPrayerTimes ? 'Refreshing…' : 'Refresh'}</span>
+                </RefreshButton>
+                <SaveSlot>
+                  <PrimaryButton
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    $dirty={isDirty}
+                    $fullWidth
+                  >
+                    <Save size={18} />
+                    {saving ? 'Saving…' : 'Save'}
+                  </PrimaryButton>
+                </SaveSlot>
+              </StickyInner>
+            </StickyBar>
+          )}
+        </>
       )}
 
-      <ButtonContainer>
-        <RefreshButton 
-          onClick={fetchAllPrayerTimes} 
-          disabled={fetchingPrayerTimes || !hasLocationSettings || !canEdit}
-        >
-          <RefreshCw size={20} />
-          {fetchingPrayerTimes ? 'Fetching...' : 'Refresh Prayer Times Now'}
-        </RefreshButton>
-        
-        <SaveButton onClick={handleSave} disabled={saving || !canEdit} $dirty={isDirty}>
-          <Save size={20} />
-          {saving ? 'Saving...' : 'Save Prayer Times'}
-        </SaveButton>
-      </ButtonContainer>
-    </Card>
+      <JumuahSection
+        jumuahTimes={jumuahTimes}
+        onChange={onJumuahChange}
+        onSave={onJumuahSave}
+        saving={saving}
+      />
+    </Page>
   );
 }

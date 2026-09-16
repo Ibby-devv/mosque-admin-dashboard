@@ -46,8 +46,8 @@ const LoginSubtitle = styled.p`
   margin: 0;
 `;
 
-const FormGroup = styled.div<{ marginBottom?: string }>`
-  margin-bottom: ${props => props.marginBottom || '1rem'};
+const FormGroup = styled.div<{ $marginBottom?: string }>`
+  margin-bottom: ${(props) => props.$marginBottom || '1rem'};
 `;
 
 const Label = styled.label`
@@ -218,7 +218,7 @@ export default function LoginForm({ onLogin, error: authError }: LoginFormProps)
             />
           </FormGroup>
 
-          <FormGroup marginBottom="1.5rem">
+          <FormGroup $marginBottom="1.5rem">
             <Label>Password</Label>
             <Input
               type="password"

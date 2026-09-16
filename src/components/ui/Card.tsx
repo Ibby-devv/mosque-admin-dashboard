@@ -1,12 +1,11 @@
 import styled from 'styled-components';
 import { Theme, media } from '../../constants/theme';
 
-// Reusable Card component based on the Jumuah Times card design
+/** Shared content surface — calm hairline panel (aliases Panel language). */
 const Card = styled.div`
-  background: ${Theme.colors.surface.card};
+  background: ${Theme.colors.surface.base};
   border: 1px solid ${Theme.colors.border.soft};
-  border-radius: ${Theme.radius.lg};
-  box-shadow: ${Theme.shadow.card};
+  border-radius: ${Theme.radius.xl};
   padding: ${Theme.spacing.lg};
 
   ${media.sm} {

@@ -170,9 +170,12 @@ export interface PrayerTimesTabProps {
   mosqueSettings?: MosqueSettings;
   scheduledChanges?: Record<string, ScheduledIqamaChange>;
   onScheduledChangesUpdate?: (changes: Record<string, ScheduledIqamaChange>) => void;
+  jumuahTimes: JumuahData | null;
+  onJumuahChange: (data: JumuahData) => void;
+  onJumuahSave: () => Promise<void>;
 }
 
-export interface JumuahTimesTabProps {
+export interface JumuahSectionProps {
   jumuahTimes: JumuahData | null;
   onChange: (data: JumuahData) => void;
   onSave: () => Promise<void>;
