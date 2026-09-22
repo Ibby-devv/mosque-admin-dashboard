@@ -13,6 +13,19 @@ import { applyOffsetIqamasToPrayerTimes, calculateIqamaTime } from '../utils/pra
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 
+type EffectMode = 'now' | 'onDate';
+
+type ScheduleDraft = {
+  date: string;
+  time: string;
+};
+
+const getTomorrowDateString = (): string => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0];
+};
+
 const Page = styled.div<{ $withSticky?: boolean }>`
   padding-bottom: ${(props) =>
     props.$withSticky
@@ -98,7 +111,7 @@ const Chip = styled.button<{ $active: boolean }>`
     ${(props) =>
       props.$active ? Theme.colors.brand.navy[800] : Theme.colors.border.soft};
   background: ${(props) =>
-      props.$active ? Theme.colors.brand.navy[800] : Theme.colors.surface.base};
+    props.$active ? Theme.colors.brand.navy[800] : Theme.colors.surface.base};
   color: ${(props) =>
     props.$active ? Theme.colors.text.inverse : Theme.colors.text.muted};
   font-family: inherit;
@@ -148,31 +161,10 @@ const OffsetHint = styled.div`
   color: ${Theme.colors.brand.navy[600]};
 `;
 
-const ScheduleToggle = styled.button`
-  display: inline-flex;
-  align-items: center;
-  gap: ${Theme.spacing.xs};
-  background: none;
-  border: none;
-  padding: 0;
-  min-height: 36px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: ${Theme.colors.brand.navy[700]};
-  cursor: pointer;
-
-  &:hover {
-    color: ${Theme.colors.brand.navy[800]};
-  }
-`;
-
 const ScheduleBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${Theme.spacing.sm};
-  padding-top: ${Theme.spacing.sm};
-  border-top: 1px solid ${Theme.colors.border.soft};
 `;
 
 const DateInput = styled.input`
@@ -198,45 +190,22 @@ const ScheduleHint = styled.div`
   line-height: 1.4;
 `;
 
-const ScheduleActions = styled.div`
-  display: flex;
-  gap: ${Theme.spacing.sm};
-`;
-
 const SchedulePrimary = styled.button`
-  flex: 1;
-  min-height: 40px;
-  padding: ${Theme.spacing.sm};
+  width: 100%;
+  min-height: 48px;
+  padding: ${Theme.spacing.md};
   border: none;
   border-radius: ${Theme.radius.md};
   background: ${Theme.colors.brand.navy[800]};
   color: white;
   font-family: inherit;
-  font-size: ${Theme.typography.small};
+  font-size: ${Theme.typography.body};
   font-weight: 600;
   cursor: pointer;
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-`;
-
-const ScheduleSecondary = styled.button`
-  flex: 1;
-  min-height: 40px;
-  padding: ${Theme.spacing.sm};
-  border: 1px solid ${Theme.colors.border.soft};
-  border-radius: ${Theme.radius.md};
-  background: transparent;
-  color: ${Theme.colors.text.muted};
-  font-family: inherit;
-  font-size: ${Theme.typography.small};
-  font-weight: 500;
-  cursor: pointer;
-
-  &:hover {
-    background: ${Theme.colors.surface.muted};
   }
 `;
 
@@ -381,10 +350,9 @@ export default function PrayerTimesTab({
   const initialSnapshotRef = useRef<string>(JSON.stringify(prayerTimes));
 
   const scheduledChanges = propsScheduledChanges || {};
+  const [effectModes, setEffectModes] = useState<Record<string, EffectMode>>({});
+  const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, ScheduleDraft>>({});
   const [schedulingPrayer, setSchedulingPrayer] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleTime, setScheduleTime] = useState('');
-  const [isScheduling, setIsScheduling] = useState(false);
 
   useEffect(() => {
     initialSnapshotRef.current = JSON.stringify(prayerTimes);
@@ -396,6 +364,18 @@ export default function PrayerTimesTab({
       initialSnapshotRef.current = JSON.stringify(prayerTimes);
     }
   }, [saving, prayerTimes]);
+
+  const getEffectMode = (prayer: string): EffectMode => effectModes[prayer] ?? 'onDate';
+
+  const getSnapshotIqama = (prayer: string): string => {
+    try {
+      const snapshot = JSON.parse(initialSnapshotRef.current) as Record<string, unknown>;
+      const value = snapshot[`${prayer}_iqama`];
+      return typeof value === 'string' ? value : '';
+    } catch {
+      return '';
+    }
+  };
 
   const loadScheduledChanges = async () => {
     try {
@@ -417,27 +397,91 @@ export default function PrayerTimesTab({
     }
   };
 
-  const handleScheduleClick = (prayer: string) => {
+  const clearScheduleDraft = (prayer: string) => {
+    setScheduleDrafts((prev) => {
+      if (!prev[prayer]) return prev;
+      const next = { ...prev };
+      delete next[prayer];
+      return next;
+    });
+  };
+
+  const handleEffectModeChange = (prayer: string, mode: EffectMode) => {
+    if (mode === 'now') {
+      const draft = scheduleDrafts[prayer];
+      if (draft?.time) {
+        onChange({
+          ...prayerTimes,
+          [`${prayer}_iqama`]: draft.time,
+        } as any);
+      }
+      clearScheduleDraft(prayer);
+      setEffectModes((prev) => ({ ...prev, [prayer]: 'now' }));
+      return;
+    }
+
+    const savedIqama = getSnapshotIqama(prayer);
+    const liveIqama = (prayerTimes as any)[`${prayer}_iqama`] || '';
+    if (liveIqama !== savedIqama) {
+      onChange({
+        ...prayerTimes,
+        [`${prayer}_iqama`]: savedIqama,
+      } as any);
+    }
+
+    setScheduleDrafts((prev) => ({
+      ...prev,
+      [prayer]: {
+        date: prev[prayer]?.date || getTomorrowDateString(),
+        time: savedIqama || liveIqama,
+      },
+    }));
+    setEffectModes((prev) => ({ ...prev, [prayer]: 'onDate' }));
+  };
+
+  const handleFixedIqamaChange = (prayer: string, value: string) => {
+    // Existing scheduled change: edits apply to live iqama only (Save).
+    if (getEffectMode(prayer) === 'onDate' && !scheduledChanges[prayer]) {
+      setScheduleDrafts((prev) => ({
+        ...prev,
+        [prayer]: {
+          date: prev[prayer]?.date || getTomorrowDateString(),
+          time: value,
+        },
+      }));
+      return;
+    }
+
+    onChange({
+      ...prayerTimes,
+      [`${prayer}_iqama`]: value,
+    } as any);
+  };
+
+  const handleScheduleDateChange = (prayer: string, date: string) => {
+    const liveIqama = (prayerTimes as any)[`${prayer}_iqama`] || '';
+    setScheduleDrafts((prev) => ({
+      ...prev,
+      [prayer]: {
+        date,
+        time: prev[prayer]?.time || liveIqama,
+      },
+    }));
+  };
+
+  const handleSaveSchedule = async (prayer: string) => {
+    const liveIqama = (prayerTimes as any)[`${prayer}_iqama`] || '';
+    const draft = scheduleDrafts[prayer];
+    const scheduleTime = draft?.time || liveIqama;
+    const scheduleDate = draft?.date || getTomorrowDateString();
+
+    if (!scheduleTime || !scheduleDate) return;
+
     setSchedulingPrayer(prayer);
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setScheduleDate(tomorrow.toISOString().split('T')[0]);
-  };
-
-  const handleCancelSchedule = () => {
-    setSchedulingPrayer(null);
-    setScheduleDate('');
-    setScheduleTime('');
-  };
-
-  const handleSaveSchedule = async () => {
-    if (!schedulingPrayer || !scheduleDate || !scheduleTime) return;
-
-    setIsScheduling(true);
     try {
       const createScheduledIqamaChange = httpsCallable(functions, 'createScheduledIqamaChange');
       const result = await createScheduledIqamaChange({
-        prayer: schedulingPrayer,
+        prayer,
         effectiveDate: scheduleDate,
         iqama_time: scheduleTime,
       });
@@ -447,9 +491,7 @@ export default function PrayerTimesTab({
       if (data.success) {
         setFetchStatus({ success: true, message: data.message });
         await loadScheduledChanges();
-        setSchedulingPrayer(null);
-        setScheduleDate('');
-        setScheduleTime('');
+        clearScheduleDraft(prayer);
       }
     } catch (error: any) {
       console.error('Error scheduling change:', error);
@@ -458,7 +500,7 @@ export default function PrayerTimesTab({
         message: error.message || 'Failed to schedule change',
       });
     } finally {
-      setIsScheduling(false);
+      setSchedulingPrayer(null);
     }
   };
 
@@ -499,13 +541,6 @@ export default function PrayerTimesTab({
     }
   };
 
-  const handleTimeChange = (prayer: string, type: 'adhan' | 'iqama', value: string): void => {
-    onChange({
-      ...prayerTimes,
-      [`${prayer}_${type}`]: value,
-    } as any);
-  };
-
   const handleIqamaTypeChange = (prayer: string, type: 'fixed' | 'offset'): void => {
     const updates: any = {
       ...prayerTimes,
@@ -513,6 +548,14 @@ export default function PrayerTimesTab({
     };
 
     if (type === 'offset') {
+      clearScheduleDraft(prayer);
+      setEffectModes((prev) => {
+        if (!prev[prayer]) return prev;
+        const next = { ...prev };
+        delete next[prayer];
+        return next;
+      });
+
       const existingOffset = prayerTimes[`${prayer}_iqama_offset` as keyof typeof prayerTimes];
       const offset =
         typeof existingOffset === 'number'
@@ -628,6 +671,8 @@ export default function PrayerTimesTab({
     });
   })();
 
+  const tomorrowMin = getTomorrowDateString();
+
   return (
     <Page $withSticky={canViewPrayer && canEdit}>
       <ScreenIntro
@@ -661,7 +706,21 @@ export default function PrayerTimesTab({
               const adhanTime = (prayerTimes as any)[`${prayer}_adhan`];
               const calculatedIqama = calculateIqamaTime(adhanTime, iqamaOffset);
               const scheduledChange = scheduledChanges[prayer];
+              const effectMode = getEffectMode(prayer);
+              const liveIqama = (prayerTimes as any)[`${prayer}_iqama`] || '';
+              const draft = scheduleDrafts[prayer];
+              const displayIqama =
+                iqamaType === 'fixed' &&
+                effectMode === 'onDate' &&
+                draft &&
+                !scheduledChange
+                  ? draft.time
+                  : liveIqama;
+              const scheduleDate = draft?.date || tomorrowMin;
+              const scheduleTime = draft?.time || liveIqama;
               const isSchedulingThis = schedulingPrayer === prayer;
+              const canSubmitSchedule =
+                Boolean(scheduleDate && scheduleTime) && scheduleTime !== getSnapshotIqama(prayer);
 
               return (
                 <PrayerPanel key={prayer} $compact>
@@ -694,8 +753,8 @@ export default function PrayerTimesTab({
 
                   {iqamaType === 'fixed' ? (
                     <TimeInput
-                      value={(prayerTimes as any)[`${prayer}_iqama`] || ''}
-                      onChange={(value) => handleTimeChange(prayer, 'iqama', value)}
+                      value={displayIqama}
+                      onChange={(value) => handleFixedIqamaChange(prayer, value)}
                       placeholder="Select time"
                       disabled={!canEdit}
                     />
@@ -721,60 +780,60 @@ export default function PrayerTimesTab({
                   )}
 
                   {canEdit && iqamaType === 'fixed' && (
-                    <div>
-                      {!scheduledChange && !isSchedulingThis && (
-                        <ScheduleToggle
+                    <FieldGroup>
+                      <BlockLabel style={{ marginBottom: Theme.spacing.sm }}>
+                        Takes effect
+                      </BlockLabel>
+                      <ChipRow>
+                        <Chip
                           type="button"
-                          onClick={() => handleScheduleClick(prayer)}
+                          $active={effectMode === 'now'}
+                          onClick={() => handleEffectModeChange(prayer, 'now')}
                         >
-                          <Calendar size={14} />
-                          Schedule…
-                        </ScheduleToggle>
-                      )}
+                          Now
+                        </Chip>
+                        <Chip
+                          type="button"
+                          $active={effectMode === 'onDate'}
+                          onClick={() => handleEffectModeChange(prayer, 'onDate')}
+                          disabled={Boolean(scheduledChange)}
+                        >
+                          On date
+                        </Chip>
+                      </ChipRow>
 
-                      {isSchedulingThis && (
-                        <ScheduleBody>
-                          <BlockLabel style={{ marginBottom: 0 }}>New iqama</BlockLabel>
-                          <TimeInput
-                            value={scheduleTime}
-                            onChange={(value) => setScheduleTime(value)}
-                          />
-                          <BlockLabel style={{ marginBottom: 0, marginTop: Theme.spacing.sm }}>
-                            Effective date
-                          </BlockLabel>
+                      {effectMode === 'onDate' && !scheduledChange && (
+                        <ScheduleBody style={{ marginTop: Theme.spacing.sm }}>
+                          <BlockLabel style={{ marginBottom: 0 }}>Effective date</BlockLabel>
                           <DateInput
                             type="date"
                             value={scheduleDate}
-                            onChange={(e) => setScheduleDate(e.target.value)}
-                            min={(() => {
-                              const tomorrow = new Date();
-                              tomorrow.setDate(tomorrow.getDate() + 1);
-                              return tomorrow.toISOString().split('T')[0];
-                            })()}
+                            onChange={(e) => handleScheduleDateChange(prayer, e.target.value)}
+                            min={tomorrowMin}
                           />
                           <ScheduleHint>
-                            Applies at {prayer} time on the day before this date.
+                            Updates after{' '}
+                            {prayer.charAt(0).toUpperCase() + prayer.slice(1)} on
+                            the day before this date.
                           </ScheduleHint>
-                          <ScheduleActions>
-                            <SchedulePrimary
-                              type="button"
-                              onClick={handleSaveSchedule}
-                              disabled={isScheduling || !scheduleDate || !scheduleTime}
-                            >
-                              {isScheduling ? 'Scheduling…' : 'Schedule'}
-                            </SchedulePrimary>
-                            <ScheduleSecondary type="button" onClick={handleCancelSchedule}>
-                              Cancel
-                            </ScheduleSecondary>
-                          </ScheduleActions>
+                          <SchedulePrimary
+                            type="button"
+                            onClick={() => handleSaveSchedule(prayer)}
+                            disabled={isSchedulingThis || !canSubmitSchedule}
+                          >
+                            {isSchedulingThis ? 'Scheduling…' : 'Schedule'}
+                          </SchedulePrimary>
                         </ScheduleBody>
                       )}
 
                       {scheduledChange && (
-                        <ScheduledBox>
+                        <ScheduledBox style={{ marginTop: Theme.spacing.sm }}>
                           <ScheduledHeader>
                             <span>
-                              <Calendar size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                              <Calendar
+                                size={14}
+                                style={{ verticalAlign: 'middle', marginRight: 4 }}
+                              />
                               Scheduled
                             </span>
                             <DeleteScheduleButton
@@ -788,15 +847,20 @@ export default function PrayerTimesTab({
                           <ScheduledDetails>
                             <div>
                               Effective:{' '}
-                              {new Date(scheduledChange.effectiveDate as number).toLocaleDateString(
-                                'en-AU'
-                              )}
+                              {new Date(
+                                scheduledChange.effectiveDate as number
+                              ).toLocaleDateString('en-AU')}
                             </div>
                             <div>New iqama: {scheduledChange.iqama_time}</div>
+                            <div>
+                              Updates after{' '}
+                              {prayer.charAt(0).toUpperCase() + prayer.slice(1)} on
+                              the day before.
+                            </div>
                           </ScheduledDetails>
                         </ScheduledBox>
                       )}
-                    </div>
+                    </FieldGroup>
                   )}
                 </PrayerPanel>
               );
