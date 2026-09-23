@@ -43,6 +43,81 @@ const StatusLine = styled.p`
   color: ${Theme.colors.text.muted};
 `;
 
+const UpdatedBadge = styled.span<{ $tone: 'fresh' | 'stale' | 'critical' }>`
+  font-weight: 600;
+  color: ${(props) =>
+    props.$tone === 'fresh'
+      ? Theme.colors.status.successDark
+      : props.$tone === 'stale'
+        ? Theme.colors.status.warningDark
+        : Theme.colors.status.errorDark};
+`;
+
+const UpdatedAbsolute = styled.span`
+  color: ${Theme.colors.text.muted};
+`;
+
+type UpdateFreshness = {
+  relative: string;
+  absolute: string;
+  tone: 'fresh' | 'stale' | 'critical';
+};
+
+const calendarDayKey = (date: Date, timeZone: string): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+
+const getUpdateFreshness = (
+  lastUpdated: unknown,
+  timeZone: string
+): UpdateFreshness | null => {
+  if (!lastUpdated) return null;
+
+  const timestamp = lastUpdated as { toDate?: () => Date; seconds?: number };
+  const updatedAt = timestamp?.toDate
+    ? timestamp.toDate()
+    : typeof timestamp?.seconds === 'number'
+      ? new Date(timestamp.seconds * 1000)
+      : lastUpdated instanceof Date
+        ? lastUpdated
+        : null;
+
+  if (!updatedAt || Number.isNaN(updatedAt.getTime())) return null;
+
+  const updatedKey = calendarDayKey(updatedAt, timeZone);
+  const todayKey = calendarDayKey(new Date(), timeZone);
+  const dayDiff = Math.round(
+    (Date.parse(todayKey) - Date.parse(updatedKey)) / 86_400_000
+  );
+
+  let relative: string;
+  let tone: UpdateFreshness['tone'];
+
+  if (dayDiff <= 0) {
+    relative = 'Updated today';
+    tone = 'fresh';
+  } else if (dayDiff === 1) {
+    relative = 'Updated yesterday';
+    tone = 'stale';
+  } else {
+    relative = `Updated ${dayDiff} days ago`;
+    tone = 'critical';
+  }
+
+  const absolute = updatedAt.toLocaleDateString('en-AU', {
+    timeZone,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  return { relative, absolute, tone };
+};
+
 const WarningPanel = styled(Panel)`
   margin-bottom: ${Theme.spacing.lg};
   background: ${Theme.colors.accent.amberSoft};
@@ -657,19 +732,8 @@ export default function PrayerTimesTab({
   };
 
   const hasLocationSettings = mosqueSettings?.latitude && mosqueSettings?.longitude;
-
-  const lastUpdatedLabel = (() => {
-    if (!prayerTimes?.last_updated) return null;
-    const timestamp = prayerTimes.last_updated as any;
-    const date = timestamp?.toDate
-      ? timestamp.toDate()
-      : new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString('en-AU', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  })();
+  const mosqueTimezone = mosqueSettings?.timezone || 'Australia/Sydney';
+  const updateFreshness = getUpdateFreshness(prayerTimes?.last_updated, mosqueTimezone);
 
   const tomorrowMin = getTomorrowDateString();
 
@@ -685,7 +749,16 @@ export default function PrayerTimesTab({
           {hasLocationSettings ? (
             <StatusLine>
               Adhan auto-calculated
-              {lastUpdatedLabel ? ` · Last updated ${lastUpdatedLabel}` : ''}
+              {updateFreshness && (
+                <>
+                  {' · '}
+                  <UpdatedBadge $tone={updateFreshness.tone}>
+                    {updateFreshness.relative}
+                  </UpdatedBadge>
+                  {' · '}
+                  <UpdatedAbsolute>{updateFreshness.absolute}</UpdatedAbsolute>
+                </>
+              )}
             </StatusLine>
           ) : (
             <WarningPanel $compact>
