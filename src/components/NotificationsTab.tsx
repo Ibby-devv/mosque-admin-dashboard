@@ -9,6 +9,7 @@ import { Send, Bell, CheckCircle, AlertCircle, Clock, Users, Trash2 } from 'luci
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, orderBy, limit, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { DEFAULT_MOSQUE_TIMEZONE, formatInstantDisplay } from '../utils/civilTime';
 import Card from './ui/Card';
 import ImageUpload from './ImageUpload';
 import { Theme, media } from '../constants/theme';
@@ -792,11 +793,7 @@ export default function NotificationsTab({
       const diffDays = Math.floor(diffHours / 24);
       if (diffDays < 7) return `${diffDays}d ago`;
 
-      return date.toLocaleDateString('en-AU', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
+      return formatInstantDisplay(date, DEFAULT_MOSQUE_TIMEZONE);
     } catch {
       return 'Unknown';
     }

@@ -12,6 +12,17 @@ import { Coordinates, CalculationMethod, PrayerTimes as AdhanPrayerTimes } from 
 import { applyOffsetIqamasToPrayerTimes, calculateIqamaTime } from '../utils/prayerTimeHelpers';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
+import {
+  DEFAULT_MOSQUE_TIMEZONE,
+  addCalendarDays,
+  civilDateFromMidnightInstant,
+  dateForAdhanCalculation,
+  formatCivilDate,
+  formatCivilDateDisplay,
+  formatInstantDisplay,
+  mosqueCivilToday,
+  parseCivilDate,
+} from '../utils/civilTime';
 
 type EffectMode = 'now' | 'onDate';
 
@@ -20,10 +31,27 @@ type ScheduleDraft = {
   time: string;
 };
 
-const getTomorrowDateString = (): string => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
+/** Mosque civil tomorrow, `YYYY-MM-DD` (min for the date picker). */
+const getTomorrowDateString = (timeZone: string, now: Date = new Date()): string => {
+  const today = mosqueCivilToday(now, timeZone);
+  return formatCivilDate(addCalendarDays(today.year, today.month, today.day, 1));
+};
+
+/** Scheduled change's effective day as `DD-MM-YYYY`. */
+const formatScheduledEffectiveDay = (
+  change: ScheduledIqamaChange,
+  timeZone: string
+): string => {
+  const civil =
+    typeof change.effectiveDay === 'string' ? parseCivilDate(change.effectiveDay) : null;
+  if (civil) return formatCivilDateDisplay(civil);
+  // Older function responses only send the millis of that day's local midnight
+  if (typeof change.effectiveDate === 'number') {
+    return formatCivilDateDisplay(
+      civilDateFromMidnightInstant(new Date(change.effectiveDate), timeZone)
+    );
+  }
+  return '';
 };
 
 const Page = styled.div<{ $withSticky?: boolean }>`
@@ -108,12 +136,7 @@ const getUpdateFreshness = (
     tone = 'critical';
   }
 
-  const absolute = updatedAt.toLocaleDateString('en-AU', {
-    timeZone,
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const absolute = formatInstantDisplay(updatedAt, timeZone);
 
   return { relative, absolute, tone };
 };
@@ -425,6 +448,8 @@ export default function PrayerTimesTab({
   const initialSnapshotRef = useRef<string>(JSON.stringify(prayerTimes));
 
   const scheduledChanges = propsScheduledChanges || {};
+  const tomorrowInMosque = (): string =>
+    getTomorrowDateString(mosqueSettings?.timezone || DEFAULT_MOSQUE_TIMEZONE);
   const [effectModes, setEffectModes] = useState<Record<string, EffectMode>>({});
   const [scheduleDrafts, setScheduleDrafts] = useState<Record<string, ScheduleDraft>>({});
   const [schedulingPrayer, setSchedulingPrayer] = useState<string | null>(null);
@@ -507,7 +532,7 @@ export default function PrayerTimesTab({
     setScheduleDrafts((prev) => ({
       ...prev,
       [prayer]: {
-        date: prev[prayer]?.date || getTomorrowDateString(),
+        date: prev[prayer]?.date || tomorrowInMosque(),
         time: savedIqama || liveIqama,
       },
     }));
@@ -520,7 +545,7 @@ export default function PrayerTimesTab({
       setScheduleDrafts((prev) => ({
         ...prev,
         [prayer]: {
-          date: prev[prayer]?.date || getTomorrowDateString(),
+          date: prev[prayer]?.date || tomorrowInMosque(),
           time: value,
         },
       }));
@@ -548,7 +573,7 @@ export default function PrayerTimesTab({
     const liveIqama = (prayerTimes as any)[`${prayer}_iqama`] || '';
     const draft = scheduleDrafts[prayer];
     const scheduleTime = draft?.time || liveIqama;
-    const scheduleDate = draft?.date || getTomorrowDateString();
+    const scheduleDate = draft?.date || tomorrowInMosque();
 
     if (!scheduleTime || !scheduleDate) return;
 
@@ -690,9 +715,8 @@ export default function PrayerTimesTab({
       const params = CalculationMethod[methodName as keyof typeof CalculationMethod]();
       const mosqueTimezone = mosqueSettings.timezone || 'Australia/Sydney';
 
-      const now = new Date();
-      const dateString = now.toLocaleDateString('en-US', { timeZone: mosqueTimezone });
-      const date = new Date(dateString);
+      // Mosque civil day at noon in the process zone (see dateForAdhanCalculation)
+      const date = dateForAdhanCalculation(new Date(), mosqueTimezone);
 
       const adhanPrayerTimes = new AdhanPrayerTimes(coordinates, date, params);
 
@@ -735,7 +759,7 @@ export default function PrayerTimesTab({
   const mosqueTimezone = mosqueSettings?.timezone || 'Australia/Sydney';
   const updateFreshness = getUpdateFreshness(prayerTimes?.last_updated, mosqueTimezone);
 
-  const tomorrowMin = getTomorrowDateString();
+  const tomorrowMin = getTomorrowDateString(mosqueTimezone);
 
   return (
     <Page $withSticky={canViewPrayer && canEdit}>
@@ -920,9 +944,7 @@ export default function PrayerTimesTab({
                           <ScheduledDetails>
                             <div>
                               Effective:{' '}
-                              {new Date(
-                                scheduledChange.effectiveDate as number
-                              ).toLocaleDateString('en-AU')}
+                              {formatScheduledEffectiveDay(scheduledChange, mosqueTimezone)}
                             </div>
                             <div>New iqama: {scheduledChange.iqama_time}</div>
                             <div>

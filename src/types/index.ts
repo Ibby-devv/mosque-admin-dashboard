@@ -72,7 +72,8 @@ export interface PrayerTimes {
 export interface ScheduledIqamaChange {
   id: string;
   prayer: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
-  effectiveDate: number; // Milliseconds timestamp (returned from cloud function)
+  effectiveDay?: string; // Civil date YYYY-MM-DD (preferred; returned from cloud function)
+  effectiveDate: number; // Milliseconds of that day's local midnight (legacy display field)
   iqama_time: string; // Fixed time only (e.g., "6:00 AM")
   applied: boolean;
   createdBy: string;
@@ -111,8 +112,14 @@ export interface Event {
   id: string;
   title: string;
   description: string;
-  date: Timestamp;
-  time: string; // e.g., "7:00 PM"
+  /** Civil date `YYYY-MM-DD` (mosque calendar day). Written by the dashboard. */
+  event_date?: string;
+  /** Civil clock `HH:mm` (24-hour). Written by the dashboard. */
+  event_time?: string;
+  /** Legacy UTC-midnight Timestamp. Read-only; no longer written. */
+  date?: Timestamp;
+  /** Legacy clock string (e.g. "7:00 PM"). Read-only; no longer written. */
+  time?: string;
   location?: string;
   category: string;
   speaker?: string;

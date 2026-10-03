@@ -14,15 +14,24 @@ import {
   getDocs,
   getDoc,
   setDoc,
-  query,
-  orderBy,
   serverTimestamp,
-  Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event, EventCategory, EventCategoriesConfig } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
+import {
+  DEFAULT_MOSQUE_TIMEZONE,
+  civilDateFromMidnightInstant,
+  compareCalendarDates,
+  formatCivilDate,
+  formatCivilDateDisplay,
+  formatClock,
+  formatClockDisplay,
+  mosqueCivilToday,
+  parseCivilDate,
+  parseClock,
+} from '../utils/civilTime';
 
 interface EventsTabProps {
   saving: boolean;
@@ -45,22 +54,75 @@ interface EventFormData {
   is_active: boolean;
 }
 
-// Helper function to check if event is in the past
-const isPastEvent = (eventDate: Timestamp): boolean => {
-  const today = new Date().toLocaleString('en-AU', {
-    timeZone: 'Australia/Sydney',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const [day, month, year] = today.split('/');
-  const todayFormatted = `${year}-${month}-${day}`;
-  
-  // Convert Timestamp to date string
-  const date = eventDate.toDate();
-  const eventDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  
-  return eventDateStr < todayFormatted;
+// The dashboard has no per-event timezone; events use the mosque zone.
+const EVENT_TIMEZONE = DEFAULT_MOSQUE_TIMEZONE;
+
+/**
+ * Civil date (`YYYY-MM-DD`) of an event.
+ * Prefers `event_date`; falls back to decoding the legacy `date` Timestamp.
+ * Returns '' when the event has no usable date.
+ */
+export const resolveEventDate = (
+  event: Pick<Event, 'event_date' | 'date'>,
+  timeZone: string = EVENT_TIMEZONE
+): string => {
+  if (typeof event.event_date === 'string' && parseCivilDate(event.event_date)) {
+    return event.event_date;
+  }
+
+  const legacy = event.date as unknown;
+  let instant: Date | null = null;
+  if (legacy && typeof (legacy as { toDate?: unknown }).toDate === 'function') {
+    instant = (legacy as { toDate: () => Date }).toDate();
+  } else if (legacy instanceof Date) {
+    instant = legacy;
+  } else if (typeof legacy === 'string' && parseCivilDate(legacy)) {
+    return legacy;
+  }
+
+  if (!instant || Number.isNaN(instant.getTime())) return '';
+  return formatCivilDate(civilDateFromMidnightInstant(instant, timeZone));
+};
+
+/**
+ * Clock for the time input (12-hour, as TimeInput expects).
+ * Prefers `event_time` (`HH:mm`); falls back to the legacy `time` string.
+ */
+export const resolveEventTimeForForm = (
+  event: Pick<Event, 'event_time' | 'time'>
+): string => {
+  const source = event.event_time ?? event.time ?? '';
+  const minutes = source ? parseClock(source) : null;
+  return minutes == null ? String(source || '') : formatClockDisplay(minutes);
+};
+
+/** Whether the event's civil day is before today's civil day in the mosque zone. */
+export const isPastEvent = (
+  event: Pick<Event, 'event_date' | 'date'>,
+  now: Date = new Date(),
+  timeZone: string = EVENT_TIMEZONE
+): boolean => {
+  const eventDate = parseCivilDate(resolveEventDate(event, timeZone));
+  if (!eventDate) return false;
+  return compareCalendarDates(eventDate, mosqueCivilToday(now, timeZone)) < 0;
+};
+
+// Newest first, by civil date then clock (both sort as strings).
+const compareEventsDesc = (a: Event, b: Event): number => {
+  const keyA = `${resolveEventDate(a)} ${a.event_time ?? ''}`;
+  const keyB = `${resolveEventDate(b)} ${b.event_time ?? ''}`;
+  return keyA < keyB ? 1 : keyA > keyB ? -1 : 0;
+};
+
+/** User-visible event day: `Sun, 04-10-2026` (weekday of the civil date). */
+const formatEventDay = (event: Pick<Event, 'event_date' | 'date'>): string => {
+  const civil = parseCivilDate(resolveEventDate(event));
+  if (!civil) return '';
+  const weekday = new Intl.DateTimeFormat('en-AU', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(civil.year, civil.month - 1, civil.day, 12)));
+  return `${weekday}, ${formatCivilDateDisplay(civil)}`;
 };
 
 // Styled Components
@@ -612,13 +674,15 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     try {
       setLoading(true);
       const eventsRef = collection(db, 'events');
-      const q = query(eventsRef, orderBy('date', 'desc'));
-      const querySnapshot = await getDocs(q);
+      // No server-side orderBy: events now carry event_date (string) and no
+      // legacy `date`, and Firestore drops documents missing the ordered field.
+      const querySnapshot = await getDocs(eventsRef);
       
       const loadedEvents: Event[] = [];
       querySnapshot.forEach((doc) => {
         loadedEvents.push({ id: doc.id, ...doc.data() } as Event);
       });
+      loadedEvents.sort(compareEventsDesc);
       
       setEvents(loadedEvents);
       console.log('Events loaded:', loadedEvents.length);
@@ -639,23 +703,12 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   const openModal = (event?: Event) => {
     if (event) {
       setEditingEvent(event);
-      // Convert Timestamp to string for date input
-      // Use local date components to avoid timezone shifts
-      let dateStr = '';
-      if (event.date?.toDate) {
-        const date = event.date.toDate();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        dateStr = `${year}-${month}-${day}`;
-      } else if (typeof event.date === 'string') {
-        dateStr = event.date;
-      }
+      // Date input speaks YYYY-MM-DD: prefer event_date, else decode legacy date
       setFormData({
         title: event.title,
         description: event.description,
-        date: dateStr,
-        time: event.time,
+        date: resolveEventDate(event),
+        time: resolveEventTimeForForm(event),
         location: event.location || '',
         category: event.category,
         speaker: event.speaker || '',
@@ -691,7 +744,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
   };
 
   const handleInputChange = (field: keyof EventFormData, value: string | boolean | number) => {
-    // Keep date as string for the input field, will convert to Timestamp on save
+    // Date stays a YYYY-MM-DD string; saved as event_date (no Timestamp)
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -702,61 +755,25 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
         return;
       }
 
-      // Convert date to Timestamp for storage using mosque timezone
-      let dateToSave: Timestamp;
-      // HTML date input provides YYYY-MM-DD format
-      // Validate the format before processing
-      if (!DATE_FORMAT_REGEX.test(formData.date)) {
+      // HTML date input provides YYYY-MM-DD; store it as-is (civil date)
+      if (!DATE_FORMAT_REGEX.test(formData.date) || !parseCivilDate(formData.date)) {
         alert('Invalid date format detected. Please select a date from the date picker.');
         return;
       }
-      
-        // Parse YYYY-MM-DD and create date at midnight UTC
-        // This ensures the event date is stored in a timezone-neutral way
-        // The mobile app will display it in the mosque's timezone
-      const [year, month, day] = formData.date.split('-').map(Number);
-      
-        // Create UTC date at midnight - this is timezone-neutral for "whole day" events
-        // We use Date.UTC() to create midnight in UTC, not the admin's local timezone
-        const dateObj = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-      
-      if (isNaN(dateObj.getTime())) {
-        alert('The selected date is invalid. Please choose a different date.');
+
+      // Time input yields 12-hour text; store the civil clock as HH:mm
+      const minutes = parseClock(formData.time);
+      if (minutes == null) {
+        alert('The selected time is invalid. Please choose a different time.');
         return;
       }
-      dateToSave = Timestamp.fromDate(dateObj);
 
-      // Parse time string into 24h hour/minute
-      const parseTime = (t: string): { hour: number; minute: number } => {
-        const trimmed = t.trim();
-        const ampmMatch = /^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/.exec(trimmed);
-        if (ampmMatch) {
-          let hour = parseInt(ampmMatch[1], 10);
-          const minute = parseInt(ampmMatch[2], 10);
-          const ampm = ampmMatch[3].toLowerCase();
-          if (ampm === 'pm' && hour !== 12) hour += 12;
-          if (ampm === 'am' && hour === 12) hour = 0;
-          return { hour, minute };
-        }
-        const hmMatch = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
-        if (hmMatch) {
-          return { hour: parseInt(hmMatch[1], 10), minute: parseInt(hmMatch[2], 10) };
-        }
-        // Fallback: 00:00
-        return { hour: 0, minute: 0 };
-      };
-
-      const { hour, minute } = parseTime(String(formData.time || '00:00'));
-
-      // Create UTC Date for start of event including time
-      const [syear, smonth, sday] = formData.date.split('-').map(Number);
-      const startDateObj = new Date(Date.UTC(syear, smonth - 1, sday, hour, minute, 0, 0));
-      const startDateTs = Timestamp.fromDate(startDateObj);
-
+      // Only the civil fields are written: no legacy date / start_date / time
+      const { date: dateInput, time: timeInput, ...restFormData } = formData;
       const eventData = {
-        ...formData,
-        date: dateToSave,
-        start_date: startDateTs,
+        ...restFormData,
+        event_date: dateInput,
+        event_time: formatClock(minutes),
       };
 
       if (editingEvent) {
@@ -972,42 +989,9 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
     }
   };
 
-  const formatDate = (timestamp: Timestamp): string => {
-    try {
-      // Handle both Timestamp objects and fallback dates
-      let date: Date;
-      if (timestamp?.toDate) {
-        date = timestamp.toDate();
-      } else if (timestamp instanceof Date) {
-        date = timestamp;
-      } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-        date = new Date(timestamp);
-      } else {
-        return String(timestamp || '');
-      }
-      
-      // Validate the date is valid
-      if (isNaN(date.getTime())) {
-        return String(timestamp || '');
-      }
-      
-      // Format as DD-MM-YYYY for Australian format
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      
-      // Get day of week for better readability
-      const dayName = date.toLocaleDateString('en-AU', { weekday: 'short' });
-      
-      return `${dayName}, ${day}-${month}-${year}`;
-    } catch {
-      return String(timestamp || '');
-    }
-  };
-
   // Calculate event statistics
-  const upcomingCount = events.filter(e => !isPastEvent(e.date)).length;
-  const pastCount = events.filter(e => isPastEvent(e.date)).length;
+  const upcomingCount = events.filter(e => !isPastEvent(e)).length;
+  const pastCount = events.filter(e => isPastEvent(e)).length;
 
   return (
     <Card>
@@ -1069,7 +1053,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
           ) : (
             <EventsGrid>
               {events.map(event => {
-                const pastEvent = isPastEvent(event.date);
+                const pastEvent = isPastEvent(event);
                 const categoryColors = getCategoryColors(event.category);
                 
                 return (
@@ -1091,7 +1075,7 @@ export default function EventsTab({ saving, onSaveStatusChange }: EventsTabProps
                     
                     <EventDetail>
                       <Calendar size={16} />
-                      {formatDate(event.date)} at {event.time}
+                      {formatEventDay(event)} at {resolveEventTimeForForm(event)}
                     </EventDetail>
                     
                     {event.location && (

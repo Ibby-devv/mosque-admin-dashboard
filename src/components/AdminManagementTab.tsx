@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Theme } from '../constants/theme';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
+import { DEFAULT_MOSQUE_TIMEZONE, formatInstantDisplay } from '../utils/civilTime';
 import { UserPlus, UserMinus, Shield, AlertCircle, Mail, Lock, User, Info, Edit2, Search, X } from 'lucide-react';
 import Loading from './ui/Loading';
 import { RoleId, ROLES, getRolesByCategory, PERMISSION_LABELS } from '../constants/roles';
@@ -508,7 +509,7 @@ export default function AdminManagementTabNew(): React.JSX.Element {
     if (!ts) return 'Never';
     const d = new Date(ts);
     if (isNaN(d.getTime())) return 'Never';
-    return `${d.toLocaleDateString()} at ${d.toLocaleTimeString()}`;
+    return formatInstantDisplay(d, DEFAULT_MOSQUE_TIMEZONE);
   };
 
   const loadUsers = async () => {

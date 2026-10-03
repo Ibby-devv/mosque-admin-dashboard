@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Theme } from '../constants/theme';
 import { db } from '../firebase';
+import { DEFAULT_MOSQUE_TIMEZONE, formatInstantDisplay } from '../utils/civilTime';
 import { collection, query, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
 import { Activity, Filter, Calendar, User, Shield, Mail, Key, Clock, CheckCircle, XCircle } from 'lucide-react';
 import Loading from './ui/Loading';
@@ -340,13 +341,7 @@ export default function AdminActivityTab(): React.JSX.Element {
       if (diffHours < 24) return `${diffHours}h ago`;
       if (diffDays < 7) return `${diffDays}d ago`;
 
-      return date.toLocaleDateString('en-AU', {
-        day: 'numeric',
-        month: 'short',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      return formatInstantDisplay(date, DEFAULT_MOSQUE_TIMEZONE);
     } catch (error) {
       return 'Invalid date';
     }

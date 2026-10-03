@@ -1,101 +1,200 @@
-import { Timestamp } from 'firebase/firestore';
+import React from 'react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { Timestamp, addDoc, updateDoc, getDocs, getDoc } from 'firebase/firestore';
+import EventsTab, {
+  isPastEvent,
+  resolveEventDate,
+  resolveEventTimeForForm,
+} from './EventsTab';
 
-/**
- * Test helper: Convert Timestamp to date string in YYYY-MM-DD format
- * This simulates the logic used in EventsTab.openModal()
- */
-function convertTimestampToDateString(timestamp: Timestamp): string {
-  let dateStr = '';
-  if (timestamp?.toDate) {
-    const date = timestamp.toDate();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    dateStr = `${year}-${month}-${day}`;
-  }
-  return dateStr;
+jest.mock('../firebase', () => ({ db: {} }));
+
+jest.mock('./ImageUpload', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('../hooks/usePermissions', () => ({
+  usePermissions: () => ({ hasPermission: () => true }),
+}));
+
+jest.mock('firebase/firestore', () => {
+  const actual = jest.requireActual('firebase/firestore');
+  return {
+    Timestamp: actual.Timestamp,
+    collection: jest.fn(),
+    addDoc: jest.fn(),
+    updateDoc: jest.fn(),
+    deleteDoc: jest.fn(),
+    doc: jest.fn(),
+    getDocs: jest.fn(),
+    getDoc: jest.fn(),
+    setDoc: jest.fn(),
+    serverTimestamp: jest.fn(),
+  };
+});
+
+const mockGetDocs = getDocs as jest.Mock;
+const mockGetDoc = getDoc as jest.Mock;
+const mockAddDoc = addDoc as jest.Mock;
+const mockUpdateDoc = updateDoc as jest.Mock;
+
+const CATEGORIES = [
+  { id: 'lecture', label: 'Lectures', color_bg: '#fff', color_text: '#000', order: 1, is_active: true },
+];
+
+const baseEvent = {
+  title: 'Islamic Finance Workshop',
+  description: 'A workshop',
+  category: 'lecture',
+  is_active: true,
+};
+
+function mockEventDocs(events: Array<{ id: string; data: Record<string, unknown> }>) {
+  mockGetDocs.mockResolvedValue({
+    forEach: (cb: (d: { id: string; data: () => Record<string, unknown> }) => void) =>
+      events.forEach((e) => cb({ id: e.id, data: () => e.data })),
+  });
 }
 
-describe('EventsTab Date Conversion', () => {
-  describe('convertTimestampToDateString', () => {
-    it('should correctly convert a Timestamp to YYYY-MM-DD format without timezone shift', () => {
-      // Create a date for January 15, 2024 at midnight local time
-      const testDate = new Date(2024, 0, 15, 0, 0, 0); // Month is 0-indexed
-      const timestamp = Timestamp.fromDate(testDate);
-      
-      const result = convertTimestampToDateString(timestamp);
-      
-      // Should return the correct date string
-      expect(result).toBe('2024-01-15');
-    });
+function renderTab() {
+  return render(<EventsTab saving={false} onSaveStatusChange={jest.fn()} />);
+}
 
-    it('should handle dates near timezone boundaries correctly', () => {
-      // Create a date that would shift to previous day if converted to UTC
-      // For Australia/Sydney (UTC+11), midnight would be 1 PM previous day in UTC
-      const testDate = new Date(2024, 5, 1, 0, 0, 0); // June 1, 2024 midnight
-      const timestamp = Timestamp.fromDate(testDate);
-      
-      const result = convertTimestampToDateString(timestamp);
-      
-      // Should still show June 1, not May 31
-      expect(result).toBe('2024-06-01');
-    });
+function getInput(container: HTMLElement, type: 'date' | 'time'): HTMLInputElement {
+  // Labels are not associated with the native date/time inputs, so query by type
+  // eslint-disable-next-line testing-library/no-node-access
+  const input = container.querySelector(`input[type="${type}"]`);
+  if (!input) throw new Error(`no ${type} input`);
+  return input as HTMLInputElement;
+}
 
-    it('should handle dates at end of month correctly', () => {
-      const testDate = new Date(2024, 11, 31, 23, 59, 59); // Dec 31, 2024
-      const timestamp = Timestamp.fromDate(testDate);
-      
-      const result = convertTimestampToDateString(timestamp);
-      
-      expect(result).toBe('2024-12-31');
-    });
+beforeEach(() => {
+  // CRA resets mock implementations between tests
+  mockGetDoc.mockResolvedValue({
+    exists: () => true,
+    data: () => ({ categories: CATEGORIES }),
+  });
+  mockAddDoc.mockResolvedValue({ id: 'new-event' });
+  mockUpdateDoc.mockResolvedValue(undefined);
+  mockEventDocs([]);
+});
 
-    it('should handle leap year dates correctly', () => {
-      const testDate = new Date(2024, 1, 29, 12, 0, 0); // Feb 29, 2024 (leap year)
-      const timestamp = Timestamp.fromDate(testDate);
-      
-      const result = convertTimestampToDateString(timestamp);
-      
-      expect(result).toBe('2024-02-29');
-    });
+describe('EventsTab civil-date contract', () => {
+  it('saves only event_date and event_time (no legacy date/start_date/time)', async () => {
+    const { container } = renderTab();
+    await waitFor(() => expect(mockGetDocs).toHaveBeenCalled());
 
-    it('should pad single-digit months and days with zeros', () => {
-      const testDate = new Date(2024, 0, 5, 12, 0, 0); // Jan 5, 2024
-      const timestamp = Timestamp.fromDate(testDate);
-      
-      const result = convertTimestampToDateString(timestamp);
-      
-      expect(result).toBe('2024-01-05');
-    });
+    fireEvent.click(await screen.findByRole('button', { name: /add new event/i }));
 
-    it('should return empty string for invalid timestamp', () => {
-      const result = convertTimestampToDateString(null as any);
-      
-      expect(result).toBe('');
+    fireEvent.change(screen.getByPlaceholderText('e.g., Islamic Finance Workshop'), {
+      target: { value: 'Islamic Finance Workshop' },
     });
+    fireEvent.change(screen.getByPlaceholderText('Describe the event...'), {
+      target: { value: 'A workshop' },
+    });
+    fireEvent.change(getInput(container, 'date'), { target: { value: '2026-10-04' } });
+    fireEvent.change(getInput(container, 'time'), { target: { value: '14:30' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /create event/i }));
+
+    await waitFor(() => expect(mockAddDoc).toHaveBeenCalledTimes(1));
+    const saved = mockAddDoc.mock.calls[0][1];
+    expect(saved.event_date).toBe('2026-10-04');
+    expect(saved.event_time).toBe('14:30');
+    expect(saved).not.toHaveProperty('date');
+    expect(saved).not.toHaveProperty('start_date');
+    expect(saved).not.toHaveProperty('time');
   });
 
-  describe('Date conversion comparison: toISOString vs local components', () => {
-    it('demonstrates the timezone issue with toISOString approach', () => {
-      // Create a date for Jan 15, 2024 at midnight in local timezone
-      const testDate = new Date(2024, 0, 15, 0, 0, 0);
-      const timestamp = Timestamp.fromDate(testDate);
-      
-      // The OLD approach (using toISOString) - may cause timezone shift
-      const oldApproach = timestamp.toDate().toISOString().split('T')[0];
-      
-      // The NEW approach (using local components) - no timezone shift
-      const newApproach = convertTimestampToDateString(timestamp);
-      
-      // The new approach should always match the expected date
-      expect(newApproach).toBe('2024-01-15');
-      
-      // The old approach might differ depending on timezone
-      // In UTC+11 timezone, midnight Jan 15 becomes 1 PM Jan 14 in UTC
-      // So toISOString() might return '2024-01-14'
-      console.log('Old approach result:', oldApproach);
-      console.log('New approach result:', newApproach);
-      console.log('Timezone offset:', testDate.getTimezoneOffset(), 'minutes');
-    });
+  it('shows the event list date as DD-MM-YYYY', async () => {
+    mockEventDocs([
+      { id: 'e1', data: { ...baseEvent, event_date: '2026-10-04', event_time: '14:30' } },
+    ]);
+    renderTab();
+
+    const detail = await screen.findByText(/04-10-2026/);
+    expect(detail).toHaveTextContent('04-10-2026 at 2:30 PM');
+    expect(detail).not.toHaveTextContent('2026-10-04');
+    expect(detail).not.toHaveTextContent('10/04/2026');
+    expect(detail).not.toHaveTextContent('04/10/2026');
+  });
+
+  it('loads event_date and event_time into the editor', async () => {
+    mockEventDocs([
+      { id: 'e1', data: { ...baseEvent, event_date: '2026-10-04', event_time: '14:30' } },
+    ]);
+    const { container } = renderTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^edit$/i }));
+
+    expect(getInput(container, 'date').value).toBe('2026-10-04');
+    expect(getInput(container, 'time').value).toBe('14:30');
+  });
+
+  it('loads a legacy UTC-midnight date into the editor without shifting the day', async () => {
+    mockEventDocs([
+      {
+        id: 'legacy',
+        data: {
+          ...baseEvent,
+          date: Timestamp.fromDate(new Date(Date.UTC(2026, 9, 4))),
+          time: '7:00 PM',
+        },
+      },
+    ]);
+    const { container } = renderTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^edit$/i }));
+
+    expect(getInput(container, 'date').value).toBe('2026-10-04');
+    expect(getInput(container, 'time').value).toBe('19:00');
+  });
+});
+
+describe('resolveEventDate / resolveEventTimeForForm', () => {
+  it('prefers event_date over the legacy Timestamp', () => {
+    const legacy = Timestamp.fromDate(new Date(Date.UTC(2026, 0, 1)));
+    expect(resolveEventDate({ event_date: '2026-10-04', date: legacy })).toBe('2026-10-04');
+  });
+
+  it('falls back to the legacy Timestamp when event_date is missing or invalid', () => {
+    const legacy = Timestamp.fromDate(new Date(Date.UTC(2026, 9, 4)));
+    expect(resolveEventDate({ date: legacy })).toBe('2026-10-04');
+    expect(resolveEventDate({ event_date: '2026-02-31', date: legacy })).toBe('2026-10-04');
+  });
+
+  it('prefers event_time and converts it for the 12-hour time input', () => {
+    expect(resolveEventTimeForForm({ event_time: '14:30', time: '9:00 AM' })).toBe('2:30 PM');
+    expect(resolveEventTimeForForm({ time: '9:00 AM' })).toBe('9:00 AM');
+  });
+});
+
+describe('isPastEvent (civil date vs mosque today)', () => {
+  // 4 Oct 2026 00:30 in Sydney (UTC+10 before the 2 AM spring-forward)
+  const sydneyEarlyOct4 = new Date('2026-10-03T14:30:00.000Z');
+  // 5 Oct 2026 01:00 in Sydney (UTC+11)
+  const sydneyEarlyOct5 = new Date('2026-10-04T14:00:00.000Z');
+
+  it('is not past on the mosque day even when the UTC day is the day before', () => {
+    expect(isPastEvent({ event_date: '2026-10-04' }, sydneyEarlyOct4)).toBe(false);
+  });
+
+  it('is past once the mosque day has rolled over', () => {
+    expect(isPastEvent({ event_date: '2026-10-04' }, sydneyEarlyOct5)).toBe(true);
+  });
+
+  it('is not past for a future civil date', () => {
+    expect(isPastEvent({ event_date: '2026-10-05' }, sydneyEarlyOct4)).toBe(false);
+  });
+
+  it('decodes a legacy Timestamp as a civil date, not via machine-zone getDate()', () => {
+    const legacy = Timestamp.fromDate(new Date(Date.UTC(2026, 9, 4)));
+    expect(isPastEvent({ date: legacy }, sydneyEarlyOct4)).toBe(false);
+    expect(isPastEvent({ date: legacy }, sydneyEarlyOct5)).toBe(true);
+  });
+
+  it('is not past when the event has no usable date', () => {
+    expect(isPastEvent({}, sydneyEarlyOct5)).toBe(false);
   });
 });

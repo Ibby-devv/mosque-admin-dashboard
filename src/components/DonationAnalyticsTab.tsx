@@ -9,6 +9,14 @@ import { Download, RefreshCw, DollarSign, TrendingUp, Calendar, Repeat } from 'l
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Card from './ui/Card';
 import { Theme, media } from '../constants/theme';
+import {
+  DEFAULT_MOSQUE_TIMEZONE,
+  addCalendarDays,
+  formatCivilDate,
+  formatCivilDateDisplay,
+  mosqueCivilToday,
+  parseCivilDate,
+} from '../utils/civilTime';
 
 // ============================================================================
 // TYPES
@@ -229,34 +237,31 @@ const LoadingState = styled.div`
 // ============================================================================
 
 // Get date range for different periods
-const getDateRange = (period: 'today' | 'week' | 'month' | 'year') => {
-  const now = new Date();
-  const sydneyTime = new Date(now.toLocaleString('en-US', { timeZone: 'Australia/Sydney' }));
-  
-  const year = sydneyTime.getFullYear();
-  const month = String(sydneyTime.getMonth() + 1).padStart(2, '0');
-  const day = String(sydneyTime.getDate()).padStart(2, '0');
-  
-  const today = `${year}-${month}-${day}`;
+const getDateRange = (
+  period: 'today' | 'week' | 'month' | 'year',
+  now: Date = new Date(),
+  timeZone: string = DEFAULT_MOSQUE_TIMEZONE
+) => {
+  // Mosque civil "today"; all range maths below is calendar arithmetic on civil dates
+  const todayDate = mosqueCivilToday(now, timeZone);
+  const today = formatCivilDate(todayDate);
   
   if (period === 'today') {
     return { start: today, end: today };
   }
   
   if (period === 'week') {
-    const weekAgo = new Date(sydneyTime);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekStart = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
-    return { start: weekStart, end: today };
+    const weekAgo = addCalendarDays(todayDate.year, todayDate.month, todayDate.day, -7);
+    return { start: formatCivilDate(weekAgo), end: today };
   }
   
   if (period === 'month') {
-    const monthStart = `${year}-${month}-01`;
+    const monthStart = formatCivilDate({ year: todayDate.year, month: todayDate.month, day: 1 });
     return { start: monthStart, end: today };
   }
   
   if (period === 'year') {
-    const yearStart = `${year}-01-01`;
+    const yearStart = formatCivilDate({ year: todayDate.year, month: 1, day: 1 });
     return { start: yearStart, end: today };
   }
   
@@ -357,12 +362,8 @@ export default function DonationAnalyticsTab({
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    // Use local date for filename to match user's timezone
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    a.download = `donations-${year}-${month}-${day}.csv`;
+    // Filename uses the mosque civil date (YYYY-MM-DD sorts correctly)
+    a.download = `donations-${formatCivilDate(mosqueCivilToday(new Date(), DEFAULT_MOSQUE_TIMEZONE))}.csv`;
     a.click();
   };
 
@@ -371,23 +372,11 @@ export default function DonationAnalyticsTab({
     return `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Format date string (YYYY-MM-DD) to display format.
-  // Parse components directly — avoid Date parsing that can shift days across timezones.
+  // Civil date string (YYYY-MM-DD) to DD-MM-YYYY for display.
   const formatDate = (dateStr: string): string => {
-    try {
-      if (!dateStr) return '';
-      const normalized = dateStr.substring(0, 10);
-      const [year, month, day] = normalized.split('-').map(Number);
-      if (!year || !month || !day) return dateStr;
-      const date = new Date(year, month - 1, day);
-      return date.toLocaleDateString('en-AU', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
+    if (!dateStr) return '';
+    const civil = parseCivilDate(dateStr.substring(0, 10));
+    return civil ? formatCivilDateDisplay(civil) : dateStr;
   };
 
   // Calculate period totals

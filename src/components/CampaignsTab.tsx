@@ -23,6 +23,11 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import {
+  DEFAULT_MOSQUE_TIMEZONE,
+  formatCivilDateDisplay,
+  mosqueCivilToday,
+} from '../utils/civilTime';
 import { usePermissions } from '../hooks/usePermissions';
 import { Permission } from '../constants/roles';
 
@@ -635,11 +640,8 @@ export default function CampaignsTab({ saving, onSaveStatusChange }: CampaignsTa
   const formatDate = (timestamp: Timestamp): string => {
     try {
       const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('en-AU', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
+      if (isNaN(date.getTime())) return String(timestamp || '');
+      return formatCivilDateDisplay(mosqueCivilToday(date, DEFAULT_MOSQUE_TIMEZONE));
     } catch {
       return String(timestamp || '');
     }
