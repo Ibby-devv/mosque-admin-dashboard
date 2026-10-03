@@ -589,7 +589,12 @@ export default function PrayerTimesTab({
       const data = result.data as { success: boolean; id: string; message: string };
 
       if (data.success) {
-        setFetchStatus({ success: true, message: data.message });
+        const civil = parseCivilDate(scheduleDate);
+        const dayLabel = civil ? formatCivilDateDisplay(civil) : scheduleDate;
+        setFetchStatus({
+          success: true,
+          message: `Scheduled ${prayer} iqama change for ${dayLabel}`,
+        });
         await loadScheduledChanges();
         clearScheduleDraft(prayer);
       }
